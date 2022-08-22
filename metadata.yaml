@@ -1,5 +1,5 @@
 ---
-Category: ''  # shoule be one of docker/pipeline/project/template/tool/training/users
+Category: 'tool'  # shoule be one of docker/pipeline/project/template/tool/training/users
 Description: ''  # Description of why the repository exists
 Maintainers: ['someone@mednet.ucla.edu', 'someoneelse@mednet.ucla.edu']  # email address of maintainers
 Contributors: 'Xavier Hernandez'  # Full names of contributors
