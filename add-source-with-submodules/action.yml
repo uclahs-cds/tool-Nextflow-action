@@ -4,7 +4,7 @@ description: 'Add a release asset containig source code with submodules'
 inputs:
   my-token:
     description: 'My PAT'
-    default: secrets.MYPAT
+    # default: secrets.MYPAT
 runs:
   using: "composite"
   steps:
@@ -12,7 +12,7 @@ runs:
       with:
         path: ${{ format('./{0}', github.event.repository.name) }}
         submodules: 'recursive'
-        token: ${ inputs.my-token }
+        # token: ${ inputs.my-token }
     - id: create-tar-file
       uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@v1.0.0-rc.1
     - name: release
