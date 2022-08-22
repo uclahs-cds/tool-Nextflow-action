@@ -1,0 +1,15 @@
+---
+name: 'Create tar with submodules'
+description: 'Create compressed tar of repository with submodules'
+outputs:
+  tar-file-path:
+    description: 'Compressed tar with submodules'
+    value: ${{ steps.compress-repository.outputs.tar-file-path }}
+runs:
+  using: "composite"
+  steps:
+    - id: compress-repository
+      shell: bash
+      run: |
+        tar -czvf source_code_with_modules.tar.gz ${{ format('./{0}', github.event.repository.name) }}
+        echo "::set-output name=tar-file-path::$(realpath source_code_with_modules.tar.gz)"
