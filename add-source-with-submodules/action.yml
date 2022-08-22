@@ -9,7 +9,7 @@ runs:
         path: ${{ format('./{0}', github.event.repository.name) }}
         submodules: 'recursive'
     - id: create-tar-file
-      uses: ucla-cds/tool-Nextflow-action/tar-with-submodules@v1.0.0-rc.1
+      uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@v1.0.0-rc.1
     - name: release
       uses: softprops/action-gh-release@v1
       with:
