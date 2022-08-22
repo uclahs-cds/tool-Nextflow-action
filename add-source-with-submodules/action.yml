@@ -4,23 +4,23 @@ description: 'Add a release asset containig source code with submodules'
 inputs:
   my-token:
     description: 'My PAT'
-    default: ${ secrets.MYPAT }
+    required: true
 runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v3
-      # with:
-        # path: ${{ format('./{0}', github.event.repository.name) }}
-        # submodules: 'recursive'
-        # token: ${ inputs.my-token }
-    - name: Checkout submodules using a PAT
-      shell: bash
-      run: |
-        git config --file .gitmodules --get-regexp url | while read url; do
-          git config --file=.gitmodules $(echo "$url" | sed -E "s/git@github.com:|https:\/\/github.com\//https:\/\/${{ inputs.my-token }}:${{ inputs.my-token }}@github.com\//")
-        done
-        git submodule sync
-        git submodule update --init --recursive
+      with:
+        path: ${{ format('./{0}', github.event.repository.name) }}
+        submodules: 'recursive'
+        token: ${ inputs.my-token }
+    # - name: Checkout submodules using a PAT
+    #   shell: bash
+    #   run: |
+    #     git config --file .gitmodules --get-regexp url | while read url; do
+    #       git config --file=.gitmodules $(echo "$url" | sed -E "s/git@github.com:|https:\/\/github.com\//https:\/\/${{ inputs.my-token }}:${{ inputs.my-token }}@github.com\//")
+    #     done
+    #     git submodule sync
+    #     git submodule update --init --recursive
     - id: create-tar-file
       uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@v1.0.0-rc.1
     - name: release
