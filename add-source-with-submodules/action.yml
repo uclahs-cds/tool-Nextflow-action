@@ -31,3 +31,4 @@ runs:
       uses: softprops/action-gh-release@v1
       with:
         files: ${{ steps.create-tar-file.outputs.tar-file-path }}
+        token: ${{ inputs.my-token }}
