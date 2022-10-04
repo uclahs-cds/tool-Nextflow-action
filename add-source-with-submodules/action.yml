@@ -18,11 +18,14 @@ runs:
       shell: bash
       run: |
         cd ${{ steps.repository-path.outputs.repository-path }}
-        git config --file .gitmodules --get-regexp url | while read url; do
-          git config --file=.gitmodules $(echo "$url" | sed -E "s/git@github.com:|https:\/\/github.com\//https:\/\/${{ inputs.my-token }}:${{ inputs.my-token }}@github.com\//")
-        done
-        git submodule sync
-        git submodule update --init --recursive
+        if [[ -f .gitmodules ]]
+        then
+          git config --file .gitmodules --get-regexp url | while read url; do
+            git config --file=.gitmodules $(echo "$url" | sed -E "s/git@github.com:|https:\/\/github.com\//https:\/\/${{ inputs.my-token }}:${{ inputs.my-token }}@github.com\//")
+          done
+          git submodule sync
+          git submodule update --init --recursive
+        fi
     - id: create-tar-file
       uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@v1.0.0-rc.1
       with:
