@@ -1,0 +1,7 @@
+---
+name: 'Render and deploy docs'
+description: 'Render pipeline documentation and deploy to GH-Pages'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
