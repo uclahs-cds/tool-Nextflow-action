@@ -22,7 +22,7 @@ build_and_deploy() {
 
 main() {
     set_git
-    python build_config_yaml_from_readme.py
+    python /src/build_config_yaml_from_readme.py
     build_and_deploy
 }
 
