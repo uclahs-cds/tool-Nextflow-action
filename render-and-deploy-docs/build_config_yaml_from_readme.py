@@ -70,7 +70,7 @@ def build_mkdocs_config():
         'site_name': get_pipeline_name(),
         'docs_dir': 'docs/',
         'repo_url': 'https://github.com/' + os.getenv('GITHUB_REPOSITORY'),
-        'nav': {key:val.name for key,val in paths.items()},
+        'nav': [{key:val.name} for key,val in paths.items()],
         'theme': 'readthedocs',
         'markdown_extensions': ['tables', 'admonition']
     }
