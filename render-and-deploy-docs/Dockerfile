@@ -9,6 +9,8 @@ COPY ./ /src/
 
 RUN pip install -r /src/requirements.txt
 
+RUN chmod +x /src/action.sh
+
 ENTRYPOINT ["/src/action.sh"]
 
 LABEL maintainer="Chenghao Zhu, ChenghaoZhu@mednet.ucla.com"
