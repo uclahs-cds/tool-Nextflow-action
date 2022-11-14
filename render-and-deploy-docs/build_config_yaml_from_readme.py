@@ -3,6 +3,7 @@ from typing import Dict, List
 import os
 from pathlib import Path
 import re
+import shutil
 import yaml
 
 
@@ -17,6 +18,7 @@ def split_readme() -> Dict[str, Path]:
     work_dir = get_workspace()
     readme_file = work_dir/'README.md'
     docs_dir = work_dir/'docs'
+    img_dir = docs_dir/'img'
     cur = None
     with open(readme_file, 'rt') as handle:
         line:str
@@ -37,6 +39,19 @@ def split_readme() -> Dict[str, Path]:
 
             if cur is None:
                 continue
+
+            p = re.compile(r'!\[.+\]\((\S+)\)$')
+            m = p.match(line)
+            if m:
+                image = m.group(1)
+                if not image.startswith('http'):
+                    image = image.split('?')[0]
+                    image_path = work_dir/image
+                    if image_path.exists():
+                        img_dir.mkdir(exist_ok=True)
+                        shutil.copy2(image, img_dir)
+                        image_name = Path(image).name
+                        line = re.sub(image, f"img/{image_name}", line)
 
             cur.append(line)
 
