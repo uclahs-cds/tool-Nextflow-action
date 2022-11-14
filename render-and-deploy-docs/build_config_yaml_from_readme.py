@@ -23,11 +23,15 @@ def split_readme() -> Dict[str, Path]:
         for line in handle:
             if line.startswith('## '):
                 header = re.sub('^#+ ', '', line.rstrip())
+
                 if header.lower() == 'overview':
                     header = 'Home'
                 cur = contents.setdefault(header, [])
                 if len(cur) == 0:
-                    doc_file_name = header.lower().replace(' ','-') + '.md'
+                    if header == 'Home':
+                        doc_file_name = 'index.md'
+                    else:
+                        doc_file_name = header.lower().replace(' ','-') + '.md'
                     doc_file_path = docs_dir/doc_file_name
                     paths[header] = doc_file_path
 
