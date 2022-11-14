@@ -19,6 +19,9 @@ def split_readme() -> Dict[str, Path]:
     readme_file = work_dir/'README.md'
     docs_dir = work_dir/'docs'
     img_dir = docs_dir/'img'
+
+    docs_dir.mkdir(exist_ok=True)
+
     cur = None
     with open(readme_file, 'rt') as handle:
         line:str
@@ -54,8 +57,6 @@ def split_readme() -> Dict[str, Path]:
                         line = re.sub(image, f"img/{image_name}", line)
 
             cur.append(line)
-
-    docs_dir.mkdir(exist_ok=True)
 
     for key, content in contents.items():
         path = paths[key]
