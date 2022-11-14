@@ -25,9 +25,8 @@ def split_readme() -> Dict[str, Path]:
                 header = re.sub('^#+ ', '', line.rstrip())
                 if header.lower() == 'overview':
                     header = 'Home'
-                cur = contents.get(header)
-                if cur is None:
-                    cur = []
+                cur = contents.setdefault(header, [])
+                if len(cur) == 0:
                     doc_file_name = header.lower().replace(' ','-') + '.md'
                     doc_file_path = docs_dir/doc_file_name
                     paths[header] = doc_file_path
