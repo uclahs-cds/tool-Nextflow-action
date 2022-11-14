@@ -17,7 +17,7 @@ set_git() {
 
 build_and_deploy() {
     config_file=${GITHUB_WORKSPACE}/mkdocs.yml
-    mkdocs gh-deploy --config-file $CONFIG_FILE --force
+    mkdocs gh-deploy --config-file $config_file --force
 }
 
 main() {
