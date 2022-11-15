@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+MKDOCS_YAML=$1
+README=$2
+
 set_git() {
     remote_repo="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
     git remote rm origin
@@ -22,7 +25,11 @@ build_and_deploy() {
 
 main() {
     set_git
-    python /src/build_config_yaml_from_readme.py
+    python /src/create_mkdocs_config.py \
+        --pipeline-dir ${GITHUB_WORKSPACE} \
+        --pipeline-repo ${GITHUB_REPOSITORY} \
+        --mkdocs-yaml ${MKDOCS_YAML} \
+        --readme ${README}
     build_and_deploy
 }
 
