@@ -130,6 +130,9 @@ def build_mkdocs_config():
     work_dir = args.pipeline_dir
     mkdocs_config = args.mkdocs_config
 
+    if mkdocs_config.name == 'None' or mkdocs_config == 'None':
+        mkdocs_config = None
+
     config_data = get_mkdocs_config_data(mkdocs_config, repo)
 
     if args.readme:
