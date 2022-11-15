@@ -26,7 +26,8 @@ def parse_args():
     parser.add_argument(
         '--mkdocs-config',
         type=Path,
-        help='Additional '
+        help='Additional MKDocs config file.',
+        default=None
     )
     parser.add_argument(
         '--readme',
@@ -36,7 +37,7 @@ def parse_args():
     )
     return parser.parse_args()
 
-def split_readme(path:Path, work_dir:Path) -> Dict[str, Path]:
+def split_readme(readme_file:Path, docs_dir:Path) -> Dict[str, Path]:
     """ Split the README file into individual markdown.
 
     Args:
@@ -45,9 +46,8 @@ def split_readme(path:Path, work_dir:Path) -> Dict[str, Path]:
     """
     contents:Dict[str, List[str]] = {}
     paths:Dict[str, Path] = {}
-    readme_file = work_dir/path
-    docs_dir = work_dir/'docs'
     img_dir = docs_dir/'img'
+    readme_file_dir = readme_file.parent
 
     docs_dir.mkdir(exist_ok=True)
 
@@ -78,11 +78,11 @@ def split_readme(path:Path, work_dir:Path) -> Dict[str, Path]:
                 image = m.group(1)
                 if not image.startswith('http'):
                     image = image.split('?')[0]
-                    image_path = work_dir/image
+                    image_path = readme_file_dir/image
                     if image_path.exists():
                         img_dir.mkdir(exist_ok=True)
-                        shutil.copy2(image, img_dir)
-                        image_name = Path(image).name
+                        shutil.copy2(image_path, img_dir)
+                        image_name = image_path.name
                         line = re.sub(image, f"img/{image_name}", line)
 
             cur.append(line)
@@ -130,13 +130,14 @@ def build_mkdocs_config():
     work_dir = args.pipeline_dir
     mkdocs_config = args.mkdocs_config
 
-    if mkdocs_config.name == 'None' or mkdocs_config == 'None':
+    if mkdocs_config is not None \
+            and (mkdocs_config.name == 'None' or mkdocs_config == 'None'):
         mkdocs_config = None
 
     config_data = get_mkdocs_config_data(mkdocs_config, repo)
 
     if args.readme:
-        paths = split_readme(args.readme, work_dir)
+        paths = split_readme(work_dir/args.readme, work_dir/config_data['docs_dir'])
         for key, val in paths.items():
             config_data['nav'].append({key:val.name})
 
