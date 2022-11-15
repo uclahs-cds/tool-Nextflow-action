@@ -138,8 +138,10 @@ def build_mkdocs_config():
 
     if args.readme:
         paths = split_readme(work_dir/args.readme, work_dir/config_data['docs_dir'])
+        split_nav = []
         for key, val in paths.items():
-            config_data['nav'].append({key:val.name})
+            split_nav.append({key:val.name})
+        config_data['nav'] = split_nav + config_data['nav']
 
     with open(work_dir/'mkdocs.yml', 'w') as handle:
         yaml.dump(config_data, handle)
