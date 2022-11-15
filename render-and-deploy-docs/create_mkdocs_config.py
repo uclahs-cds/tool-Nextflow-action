@@ -34,6 +34,7 @@ def parse_args():
         help='Relative path to the README.md file.',
         default=Path('README.md')
     )
+    return parser.parse_args()
 
 def split_readme(path:Path, work_dir:Path) -> Dict[str, Path]:
     """ Split the README file into individual markdown.
