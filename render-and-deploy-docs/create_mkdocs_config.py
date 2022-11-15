@@ -113,6 +113,7 @@ def get_mkdocs_config_data(path:Path, repo:str):
             data = yaml.safe_load(handle)
             if 'nav' not in data:
                 data['nav'] = []
+            return data
     else:
         return {
             'site_name': get_pipeline_name(repo),
@@ -133,6 +134,9 @@ def build_mkdocs_config():
     if mkdocs_config is not None \
             and (mkdocs_config.name == 'None' or mkdocs_config == 'None'):
         mkdocs_config = None
+
+    if mkdocs_config is not None:
+        mkdocs_config = work_dir/mkdocs_config
 
     config_data = get_mkdocs_config_data(mkdocs_config, repo)
 
