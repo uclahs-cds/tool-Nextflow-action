@@ -24,7 +24,7 @@ def parse_args():
         ' from github action.'
     )
     parser.add_argument(
-        '--mkdocs-yaml',
+        '--mkdocs-config',
         type=Path,
         help='Additional '
     )

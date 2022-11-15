@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-MKDOCS_YAML=$1
+MKDOCS_CONFIG=$1
 README=$2
 
 set_git() {
@@ -28,7 +28,7 @@ main() {
     python /src/create_mkdocs_config.py \
         --pipeline-dir ${GITHUB_WORKSPACE} \
         --pipeline-repo ${GITHUB_REPOSITORY} \
-        --mkdocs-yaml ${MKDOCS_YAML} \
+        --mkdocs-config ${MKDOCS_CONFIG} \
         --readme ${README}
     build_and_deploy
 }

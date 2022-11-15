@@ -6,7 +6,7 @@ inputs:
     description: 'Relative path to the README file.'
     required: false
     default: 'README.md'
-  mkdocs_yaml:
+  mkdocs_config:
     description: 'Relative path to the MKDocs config yaml.'
     required: false
     default: 'None'
@@ -16,5 +16,5 @@ runs:
   image: 'Dockerfile'
   entrypoint: '/src/action.sh'
   args:
-    - ${{ inputs.mkdocs_yaml }}
+    - ${{ inputs.mkdocs_config }}
     - ${{ inputs.readme }}
