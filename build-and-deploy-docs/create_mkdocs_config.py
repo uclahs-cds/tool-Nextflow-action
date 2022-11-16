@@ -72,10 +72,10 @@ def split_readme(readme_file:Path, docs_dir:Path) -> Dict[str, Path]:
             if cur is None:
                 continue
 
-            p = re.compile(r'!\[.+\]\((\S+)\)$')
-            m = p.match(line)
-            if m:
-                image = m.group(1)
+            pattern = re.compile(r'!\[.+\]\((\S+)\)$')
+            match = pattern.match(line)
+            if match:
+                image = match.group(1)
                 if not image.startswith('http'):
                     image = image.split('?')[0]
                     image_path = readme_file_dir/image
