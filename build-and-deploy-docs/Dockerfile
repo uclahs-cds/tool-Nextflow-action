@@ -1,6 +1,8 @@
 FROM python:3.8.1
 
-RUN apt-get update && apt-get install -y git libssl-dev build-essential
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y git libssl-dev build-essential \
+    rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /src
 
