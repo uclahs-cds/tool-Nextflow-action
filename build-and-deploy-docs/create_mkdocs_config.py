@@ -8,6 +8,8 @@ import shutil
 import yaml
 
 
+# pylint: disable=R0914
+
 def parse_args():
     """ parse args """
     parser = argparse.ArgumentParser()
