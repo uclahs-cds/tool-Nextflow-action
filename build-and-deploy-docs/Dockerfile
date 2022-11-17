@@ -10,7 +10,14 @@ COPY ./ /src/
 
 RUN pip install -r /src/requirements.txt
 
-RUN chmod +x /src/action.sh
+RUN chmod -R 777 /src
+
+# Add a new user/group called bldocker
+RUN groupadd -g 500001 bldocker && \
+    useradd -r -u 500001 -g bldocker bldocker
+
+# Change the default user to bldocker from root
+USER bldocker
 
 ENTRYPOINT ["/src/action.sh"]
 
