@@ -10,24 +10,17 @@ runs:
   steps:
     - id: repository-path
       shell: bash
-      run: echo "::set-output name=repository-path::${{ format('./{0}', github.event.repository.name) }}"
+      run: echo "repository-path=${{ format('./{0}', github.event.repository.name) }}" >> $GITHUB_OUTPUT
+    - id: set-to-https
+      shell: bash
+      run: echo -e '[url "https://github.com/"]\n  insteadOf = "git@github.com:"' >> ~/.gitconfig
     - uses: actions/checkout@v3
       with:
         path: ${{ steps.repository-path.outputs.repository-path }}
-    - name: Checkout submodules using a PAT
-      shell: bash
-      run: |
-        cd ${{ steps.repository-path.outputs.repository-path }}
-        if [[ -f .gitmodules ]]
-        then
-          git config --file .gitmodules --get-regexp url | while read url; do
-            git config --file=.gitmodules $(echo "$url" | sed -E "s/git@github.com:|https:\/\/github.com\//https:\/\/${{ inputs.my-token }}:${{ inputs.my-token }}@github.com\//")
-          done
-          git submodule sync
-          git submodule update --init --recursive
-        fi
+        submodules: 'recursive'
+        token: ${{ inputs.my-token }}
     - id: create-tar-file
-      uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@v1.0.0-rc.1
+      uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@latest
       with:
         repository-directory: ${{ steps.repository-path.outputs.repository-path }}
     - name: release
