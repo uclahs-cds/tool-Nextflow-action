@@ -16,4 +16,4 @@ runs:
       shell: bash
       run: |
         tar -czvf source_code_with_modules.tar.gz ${{ inputs.repository-directory }}
-        echo "::set-output name=tar-file-path::$(realpath source_code_with_modules.tar.gz)"
+        echo "tar-file-path=$(realpath source_code_with_modules.tar.gz)" >> $GITHUB_OUTPUT
