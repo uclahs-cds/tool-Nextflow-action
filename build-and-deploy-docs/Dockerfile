@@ -4,13 +4,12 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y git libssl-dev build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir /src
+WORKDIR /src
 
 COPY ./ /src/
 
-RUN pip install -r /src/requirements.txt
-
-RUN chmod +x /src/action.sh
+RUN pip install -r /src/requirements.txt && \
+    chmod +x /src/action.sh
 
 ENTRYPOINT ["/src/action.sh"]
 
