@@ -49,7 +49,7 @@ def split_readme(readme_file:Path, docs_dir:Path) -> Dict[str, Path]:
     contents:Dict[str, List[str]] = {}
     paths:Dict[str, Path] = {}
     img_dir = docs_dir/'img'
-    readme_file_dir = readme_file.parent
+    readme_file_dir = readme_file.resolve().parent
 
     docs_dir.mkdir(exist_ok=True)
 
@@ -58,7 +58,8 @@ def split_readme(readme_file:Path, docs_dir:Path) -> Dict[str, Path]:
         line:str
         for line in handle:
             if line.startswith('## '):
-                header = re.sub('^#+ ', '', line.rstrip())
+                header_regex = re.compile('^#+')
+                header = header_regex.sub('', line.rstrip())
 
                 if header.lower() == 'overview':
                     header = 'Home'
@@ -92,8 +93,7 @@ def split_readme(readme_file:Path, docs_dir:Path) -> Dict[str, Path]:
     for key, content in contents.items():
         path = paths[key]
         with open(path, 'w') as handle:
-            for line in content:
-                handle.write(line)
+            handle.writelines(''.join(content))
 
     return paths
 
