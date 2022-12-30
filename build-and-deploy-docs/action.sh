@@ -6,6 +6,9 @@ README=$2
 TOKEN=$3
 
 set_git() {
+    # see https://github.com/actions/checkout/issues/766
+    git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
     remote_repo="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
     git remote rm origin
     git remote add origin "${remote_repo}"
@@ -17,12 +20,6 @@ set_git() {
     if ! git config --get user.email; then
         git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
     fi
-}
-
-set_ownership() {
-    chown -R $(id -u):$(id -u) ${GITHUB_WORKSPACE}
-    # see https://github.com/actions/checkout/issues/766
-    git config --global --add safe.directory "${GITHUB_WORKSPACE}"
 }
 
 build_and_deploy() {
@@ -37,7 +34,6 @@ main() {
         --pipeline-repo ${GITHUB_REPOSITORY} \
         --mkdocs-config ${MKDOCS_CONFIG} \
         --readme ${README}
-    set_ownership
     build_and_deploy
 }
 
