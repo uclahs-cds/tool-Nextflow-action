@@ -3,9 +3,10 @@ set -euo pipefail
 
 MKDOCS_CONFIG=$1
 README=$2
+TOKEN=$3
 
 set_git() {
-    remote_repo="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+    remote_repo="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
     git remote rm origin
     git remote add origin "${remote_repo}"
 

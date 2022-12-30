@@ -24,8 +24,8 @@ jobs:
 
       - name: Deploy docs
         uses: uclahs-cds/tool-Nextflow-action/build-and-deploy-docs@czhu-render-and-deploy-doc
-        env:
-          GITHUB_TOKEN: ${{ secrets.UCLAHS_CDS_REPO_READ_TOKEN }}
+        with:
+          token: ${{ secrets.UCLAHS_CDS_REPO_READ_TOKEN }}
 ```
 
 ## Parameters

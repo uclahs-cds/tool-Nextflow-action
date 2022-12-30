@@ -10,6 +10,9 @@ inputs:
     description: 'Relative path to the MKDocs config yaml.'
     required: false
     default: 'None'
+  token:
+    description: 'The github token to use which requires the read and write access.'
+    required: true
 
 runs:
   using: 'docker'
@@ -18,3 +21,4 @@ runs:
   args:
     - ${{ inputs.mkdocs_config }}
     - ${{ inputs.readme }}
+    - ${{ inputs.token }}
