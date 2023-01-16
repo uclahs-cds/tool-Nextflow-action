@@ -11,7 +11,7 @@ inputs:
     required: false
     default: 'None'
   token:
-    description: 'The github token to use which requires the read and write access.'
+    description: 'The github token to use which requires the read and write access to the repo.'
     required: true
 
 runs:

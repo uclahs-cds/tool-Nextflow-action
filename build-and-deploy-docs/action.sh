@@ -8,7 +8,7 @@ TOKEN=$3
 set_git() {
     # see https://github.com/actions/checkout/issues/766
     git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-
+    
     remote_repo="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
     git remote rm origin
     git remote add origin "${remote_repo}"
