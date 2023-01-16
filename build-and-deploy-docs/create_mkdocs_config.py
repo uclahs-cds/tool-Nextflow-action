@@ -5,8 +5,19 @@ from typing import Dict, List
 from pathlib import Path
 import re
 import shutil
+import magic
 import yaml
 
+
+VALID_IMAGE_MIME_TYPES = {
+    'image/png',
+    'image/jpeg',
+    'image/pjpeg'
+    'image/gif',
+    'image/tiff',
+    'image/x-tiff',
+    'image/svg+xml'
+}
 
 # pylint: disable=R0914
 
@@ -39,7 +50,27 @@ def parse_args():
     )
     return parser.parse_args()
 
-def split_readme(readme_file:Path, docs_dir:Path) -> Dict[str, Path]:
+def is_url(path:str) -> bool:
+    """ Checks if the given path is an url. """
+    return path.startswith('http')
+
+def check_image(path:Path) -> bool:
+    """ """
+    return magic.from_file(str(path))
+
+def validate_image(path:str, work_dir:Path) -> Path:
+    """ """
+    path = path.split('?')[0]
+    validated_path = Path(path)
+
+    if not str(validated_path.resolve()).startswith(str(work_dir.resolve())) \
+        or not validated_path.exists() \
+        or magic.from_file(str(validated_path), mime=True) not in VALID_IMAGE_MIME_TYPES:
+        raise ValueError('The given path is invalid.')
+
+    return validated_path
+
+def split_readme(readme_file:Path, docs_dir:Path, work_dir:Path) -> Dict[str, Path]:
     """ Split the README file into individual markdown.
 
     Args:
@@ -79,14 +110,13 @@ def split_readme(readme_file:Path, docs_dir:Path) -> Dict[str, Path]:
             match = pattern.match(line)
             if match:
                 image = match.group(1)
-                if not image.startswith('http'):
-                    image = image.split('?')[0]
-                    image_path = readme_file_dir/image
-                    if image_path.exists():
-                        img_dir.mkdir(exist_ok=True)
-                        shutil.copy2(image_path, img_dir)
-                        image_name = image_path.name
-                        line = re.sub(image, f"img/{image_name}", line)
+                if not is_url(image):
+                    raw_image_path = image
+                    valid_image_path = validate_image(image, work_dir)
+                    img_dir.mkdir(exist_ok=True)
+                    shutil.copy2(valid_image_path, img_dir)
+                    image_name = valid_image_path.name
+                    line = re.sub(raw_image_path, f"img/{image_name}", line)
 
             cur.append(line)
 
@@ -143,7 +173,11 @@ def build_mkdocs_config():
     config_data = get_mkdocs_config_data(mkdocs_config, repo)
 
     if args.readme:
-        paths = split_readme(work_dir/args.readme, work_dir/config_data['docs_dir'])
+        paths = split_readme(
+            readme_file=work_dir/args.readme,
+            docs_dir=work_dir/config_data['docs_dir'],
+            work_dir=work_dir
+        )
         split_nav = []
         for key, val in paths.items():
             split_nav.append({key:val.name})
