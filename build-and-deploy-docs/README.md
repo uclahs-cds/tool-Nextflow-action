@@ -1,6 +1,6 @@
 # Build and Deploy Pipeline Documentation
 
-This github action builds a documentation website and deploy it to [GitHub Pages](https://pages.github.com/) for the UCLA-CDS pipelines using [MKDocs](https://www.mkdocs.org/). It takes the README.md and split sections into individual pages base on the headings. A mkdocs config yaml file can also be used to specify specific parameters including additional documentations. Documentations must be written in Markdown syntax.
+This github action builds a documentation website and deploy it to [GitHub Pages](https://pages.github.com/) for the UCLAHS-CDS pipelines using [MKDocs](https://www.mkdocs.org/). It takes the README.md and split sections into individual pages base on the headings. A mkdocs config yaml file can also be used to specify specific parameters including additional documentations. Documentations must be written in Markdown syntax.
 
 ## Example
 
