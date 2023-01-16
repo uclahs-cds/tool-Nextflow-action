@@ -54,12 +54,9 @@ def is_url(path:str) -> bool:
     """ Checks if the given path is an url. """
     return path.startswith('http')
 
-def check_image(path:Path) -> bool:
-    """ """
-    return magic.from_file(str(path))
-
 def validate_image(path:str, work_dir:Path) -> Path:
-    """ """
+    """ Check whether the given path is a valid image file and return the
+    cleaned and resolved path. """
     path = path.split('?')[0]
     validated_path = Path(path)
 
