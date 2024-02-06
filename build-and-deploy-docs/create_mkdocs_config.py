@@ -170,8 +170,20 @@ def split_readme_new(readme_file: Path,
             if not resolved_path.is_relative_to(readme_file.parent):
                 return url
 
+            # If the path is already under the docs directory, correct it
+            if resolved_path.is_relative_to(docs_dir):
+                return urlunparse((
+                    "",     # scheme
+                    "",     # netloc
+                    str(resolved_path.relative_to(docs_dir)),
+                    link.params,
+                    link.query,
+                    link.fragment
+                ))
+
             # If the link is to an image, copy that image to the docs
-            if magic.from_file(resolved_path, mime=True) in VALID_IMAGE_MIME_TYPES:
+            filetype = magic.from_file(resolved_path, mime=True)
+            if filetype in VALID_IMAGE_MIME_TYPES:
                 output_path = Path(img_dir, resolved_path.name)
                 shutil.copy2(resolved_path, output_path)
 
@@ -184,7 +196,6 @@ def split_readme_new(readme_file: Path,
                     link.fragment
                 ))
 
-            print("FIXME: Link to a relative file", link.path)
             return url
 
         if link.fragment:
