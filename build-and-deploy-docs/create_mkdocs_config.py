@@ -3,9 +3,10 @@
 into individual markdown file for MKDocs to render. """
 import argparse
 import collections
+import itertools
+import os
 import re
 import shutil
-import itertools
 
 from urllib.parse import urlparse, urlunparse
 from dataclasses import dataclass, field
@@ -60,7 +61,34 @@ def parse_args():
         help='Relative path to the README.md file.',
         default=Path('README.md')
     )
-    return parser.parse_args()
+
+    args = parser.parse_args()
+
+    # Handle GitHub Actions passing the literal default value "None"
+    if args.mkdocs_config is not None and args.mkdocs_config.name == 'None':
+        args.mkdocs_config = None
+
+    # Make sure the referenced files exist and are within this repository
+    if args.mkdocs_config is not None:
+        args.mkdocs_config = (args.pipeline_dir / args.mkdocs_config).resolve()
+        if not args.mkdoc_config.exists():
+            parser.error(f"Config file {args.mkdocs_config} not found!")
+
+        if not args.mkdocs_config.is_relative_to(args.pipeline_dir):
+            parser.error(
+                f"Config file {args.mkdocs_config} outside of repository!"
+            )
+
+    args.readme = (args.pipeline_dir / args.readme).resolve()
+    if not args.readme.exists():
+        parser.error(f"README {args.readme} not found!")
+
+    if not args.readme.is_relative_to(args.pipeline_dir):
+        parser.error(
+            f"README {args.readme} outside of repository!"
+        )
+
+    return args
 
 
 def get_heading_anchor(text):
@@ -186,7 +214,7 @@ def split_readme(readme_file: Path,
                         path=str(Path(
                             pipeline_repo,
                             "blob",
-                            "main",
+                            os.environ.get("GITHUB_HEAD_REF", "main"),
                             resolved_path.relative_to(readme_file.parent)
                         ))
                     )
@@ -236,12 +264,6 @@ def split_readme(readme_file: Path,
     return table_of_contents
 
 
-def get_pipeline_name(repo: str):
-    """ Get the pipeline name. """
-    pipeline_name = repo.rsplit('/', maxsplit=1)[-1]
-    return pipeline_name
-
-
 def get_mkdocs_config_data(path: Path, repo: str):
     """ Read the given MKDocs config file or create it from default.
 
@@ -250,8 +272,10 @@ def get_mkdocs_config_data(path: Path, repo: str):
           config is used.
         - `repo`: The github repo name.
     """
+    pipeline_name = repo.rsplit("/", maxsplit=1)[-1]
+
     config = {
-        'site_name': get_pipeline_name(repo),
+        'site_name': pipeline_name,
         'docs_dir': 'docs/',
         'repo_url': 'https://github.com/' + repo,
         'theme': 'readthedocs',
@@ -278,29 +302,28 @@ def get_mkdocs_config_data(path: Path, repo: str):
 def build_mkdocs_config():
     """ Build the mkdocs config file. """
     args = parse_args()
-    repo = args.pipeline_repo
-    work_dir = args.pipeline_dir
-    mkdocs_config = args.mkdocs_config
 
-    if mkdocs_config is not None \
-            and (mkdocs_config.name == 'None' or mkdocs_config == 'None'):
-        mkdocs_config = None
+    config_data = get_mkdocs_config_data(
+        args.mkdocs_config, args.pipeline_repo)
 
-    if mkdocs_config is not None:
-        mkdocs_config = work_dir/mkdocs_config
-
-    config_data = get_mkdocs_config_data(mkdocs_config, repo)
+    # Sanity-check that we're not trying to reach outside the repository
+    if Path(config_data["docs_dir"]).is_absolute():
+        raise ValueError(
+            f"MkDocs doc_dir={config_data['docs_dir']} cannot be absolute!"
+        )
 
     if args.readme:
         readme_nav = split_readme(
-            readme_file=work_dir/args.readme,
-            docs_dir=work_dir/config_data['docs_dir'],
+            readme_file=args.readme,
+            docs_dir=args.pipeline_dir/config_data['docs_dir'],
             pipeline_repo=args.pipeline_repo
         )
 
         config_data['nav'] = readme_nav + config_data['nav']
 
-    with Path(work_dir, "mkdocs.yml").open("w", encoding="utf-8") as outfile:
+    output_config = Path(args.pipeline_dir, "mkdocs.yml")
+
+    with output_config.open("w", encoding="utf-8") as outfile:
         yaml.safe_dump(
             config_data,
             outfile,
