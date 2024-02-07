@@ -19,16 +19,16 @@ set_git() {
 
 build_and_deploy() {
     config_file=${GITHUB_WORKSPACE}/mkdocs.yml
-    mkdocs gh-deploy --config-file $config_file --force
+    mkdocs gh-deploy --config-file "$config_file" --force
 }
 
 main() {
     set_git
     python /src/create_mkdocs_config.py \
-        --pipeline-dir ${GITHUB_WORKSPACE} \
-        --pipeline-repo ${GITHUB_REPOSITORY} \
-        --mkdocs-config ${MKDOCS_CONFIG} \
-        --readme ${README}
+        --pipeline-dir "${GITHUB_WORKSPACE}" \
+        --pipeline-repo "${GITHUB_REPOSITORY}" \
+        --mkdocs-config "${MKDOCS_CONFIG}" \
+        --readme "${README}"
     build_and_deploy
 }
 
