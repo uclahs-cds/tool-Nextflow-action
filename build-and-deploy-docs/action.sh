@@ -19,7 +19,9 @@ set_git() {
 
 build_and_deploy() {
     config_file=${GITHUB_WORKSPACE}/mkdocs.yml
-    mkdocs gh-deploy --config-file "$config_file" --force
+    mike deploy \
+        --config-file "$config_file" \
+        "$(git describe --tags --always)"
 }
 
 main() {
