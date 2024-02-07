@@ -214,7 +214,7 @@ def split_readme(readme_file: Path,
                         path=str(Path(
                             pipeline_repo,
                             "blob",
-                            os.environ.get("GITHUB_HEAD_REF", "main"),
+                            os.environ.get("GITHUB_SHA", "main"),
                             resolved_path.relative_to(readme_file.parent)
                         ))
                     )
