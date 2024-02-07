@@ -23,10 +23,23 @@ set_git() {
 
 build_and_deploy() {
     config_file=${GITHUB_WORKSPACE}/mkdocs.yml
+
+    # Create a new commit on the gh-pages branch with documentation from this
+    # version and alias that as "latest"
     mike deploy \
         --config-file "$config_file" \
-        --push \
-        "$(git describe --tags --always)"
+        --update-aliases \
+        "$(git describe --tags --always)" \
+        latest
+
+    # Redirect from the base site to the latest version. This will be a no-op
+    # after the very first deployment, but it will not cause problems
+    mike set-default \
+        --config-file "$config_file" \
+        latest
+
+    # Push up the changes to the docs
+    git push origin gh-pages
 }
 
 main() {
