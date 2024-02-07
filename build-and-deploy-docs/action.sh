@@ -23,7 +23,7 @@ build_and_deploy() {
 }
 
 main() {
-    set_git
+    # set_git
     python /src/create_mkdocs_config.py \
         --pipeline-dir "${GITHUB_WORKSPACE}" \
         --pipeline-repo "${GITHUB_REPOSITORY}" \

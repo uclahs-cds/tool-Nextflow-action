@@ -1,18 +1,8 @@
 FROM python:3.12.1
 
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-        git \
-        libssl-dev \
-        build-essential \
-        && \
-    rm -rf /var/lib/apt/lists/*
+COPY action.sh create_mkdocs_config.py requirements.txt /src/
 
-WORKDIR /src
-
-COPY ./ /src/
-
-RUN python -m pip install -r /src/requirements.txt && \
+RUN python -m pip install --no-cache-dir -r /src/requirements.txt && \
     chmod +x /src/action.sh
 
 ENTRYPOINT ["/src/action.sh"]
