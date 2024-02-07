@@ -16,6 +16,9 @@ set_git() {
 
     git config --global user.name "${GITHUB_ACTOR}"
     git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+    # See https://github.com/jimporter/mike/tree/af47b9699aeeeea7f9ecea2631e1c9cfd92e06af#deploying-via-ci
+    git fetch origin gh-pages --depth=1
 }
 
 build_and_deploy() {
