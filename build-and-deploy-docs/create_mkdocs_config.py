@@ -274,12 +274,16 @@ def get_mkdocs_config_data(path: Path, repo: str):
     """
     pipeline_name = repo.rsplit("/", maxsplit=1)[-1]
 
+    # Make pages link back to the commit that generated these docs (falling
+    # back to `main` if that can't be found)
+    commit_id = os.environ.get("GITHUB_SHA", "main")
+
     config = {
         'site_name': pipeline_name,
         'docs_dir': 'docs/',
         'repo_url': 'https://github.com/' + repo,
         'theme': 'readthedocs',
-        'edit_uri_template': 'blob/main/README.md',
+        'edit_uri_template': f'blob/{commit_id}/README.md',
         'nav': [],
     }
 
