@@ -1,6 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-set -x
 
 MKDOCS_CONFIG=$1
 README=$2

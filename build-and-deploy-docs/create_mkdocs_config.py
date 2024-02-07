@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-""" Create MKDocs config yaml. If a README file is given, the content is split
-into individual markdown file for MKDocs to render. """
+"""
+Create MKDocs config yaml.
+
+If a README file is given, the content is split into individual markdown file
+for MKDocs to render.
+"""
 import argparse
 import collections
 import itertools
@@ -14,11 +18,11 @@ from pathlib import Path
 from typing import Dict, List
 
 import magic
-import yaml
 import mdformat
+import yaml
+
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
-from mdformat.renderer import RenderContext, RenderTreeNode
 
 
 VALID_IMAGE_MIME_TYPES = {
@@ -158,7 +162,7 @@ def split_readme(readme_file: Path,
                 # We've moved on to a new page
                 pages.append(Page(heading_content))
 
-            # Associate this anchor with the the current page
+            # Associate this anchor with the current page
             anchor = get_heading_anchor(heading_content)
             assert anchor not in anchor_pages
             anchor_pages[anchor] = pages[-1].get_filename()
@@ -188,8 +192,6 @@ def split_readme(readme_file: Path,
 
             # Only mess with paths within the repository
             if resolved_path.is_relative_to(readme_file.parent):
-                filetype = magic.from_file(resolved_path, mime=True)
-
                 # If the path is already under the docs/ directory, correct it
                 # (the linking document will now be under docs/ as well)
                 if resolved_path.is_relative_to(docs_dir):
@@ -198,7 +200,8 @@ def split_readme(readme_file: Path,
                     )
 
                 # If the link is to an image, copy that image to the docs
-                elif filetype in VALID_IMAGE_MIME_TYPES:
+                elif magic.from_file(resolved_path, mime=True) \
+                        in VALID_IMAGE_MIME_TYPES:
                     output_path = Path(img_dir, resolved_path.name)
                     shutil.copy2(resolved_path, output_path)
 
