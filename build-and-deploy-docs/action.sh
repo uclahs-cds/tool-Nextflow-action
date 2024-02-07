@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+set -x
 
 MKDOCS_CONFIG=$1
 README=$2
@@ -21,6 +22,7 @@ build_and_deploy() {
     config_file=${GITHUB_WORKSPACE}/mkdocs.yml
     mike deploy \
         --config-file "$config_file" \
+        --push \
         "$(git describe --tags --always)"
 }
 
