@@ -115,12 +115,10 @@ class Page:
 
 def split_readme_new(readme_file: Path,
                      docs_dir: Path,
-                     work_dir: Path) -> Dict[str, Path]:
+                     pipeline_repo: str) -> Dict[str, Path]:
     """
     Split the README file into individual markdown files.
     """
-    contents: Dict[str, List[str]] = {}
-    paths: Dict[str, Path] = {}
     img_dir = docs_dir / 'img'
 
     docs_dir.mkdir(exist_ok=True)
@@ -196,7 +194,20 @@ def split_readme_new(readme_file: Path,
                     link.fragment
                 ))
 
-            return url
+            # For everything else, link to the file on GitHub
+            return urlunparse((
+                "https",
+                "github.com",
+                str(Path(
+                    pipeline_repo,
+                    "blob",
+                    "main",
+                    resolved_path.relative_to(readme_file.parent)
+                )),
+                link.params,
+                link.query,
+                link.fragment
+            ))
 
         if link.fragment:
             # This is an anchor link. As we've split the monolithic README into
@@ -247,49 +258,6 @@ def split_readme_new(readme_file: Path,
 
     return table_of_contents
 
-    cur = None
-
-    with open(readme_file, 'rt') as handle:
-        line:str
-        for line in handle:
-            if line.startswith('## '):
-                header_regex = re.compile('^#+')
-                header = header_regex.sub('', line.rstrip())
-
-                if header.lower() == 'overview':
-                    header = 'Home'
-                cur = contents.setdefault(header, [])
-                if len(cur) == 0:
-                    if header == 'Home':
-                        doc_file_name = 'index.md'
-                    else:
-                        doc_file_name = header.lower().replace(' ','-') + '.md'
-                    doc_file_path = docs_dir/doc_file_name
-                    paths[header] = doc_file_path
-
-            if cur is None:
-                continue
-
-            pattern = re.compile(r'!\[.+\]\((\S+)\)$')
-            match = pattern.match(line)
-            if match:
-                image = match.group(1)
-                if not is_url(image):
-                    raw_image_path = image
-                    valid_image_path = validate_image(image, work_dir)
-                    img_dir.mkdir(exist_ok=True)
-                    shutil.copy2(valid_image_path, img_dir)
-                    image_name = valid_image_path.name
-                    line = re.sub(raw_image_path, f"img/{image_name}", line)
-
-            cur.append(line)
-
-    for key, content in contents.items():
-        path = paths[key]
-        with open(path, 'w') as handle:
-            handle.writelines(''.join(content))
-
-    return paths
 
 def get_pipeline_name(repo: str):
     """ Get the pipeline name. """
@@ -319,6 +287,7 @@ def get_mkdocs_config_data(path:Path, repo:str):
             'theme': 'readthedocs',
             'markdown_extensions': ['tables', 'admonition'],
             'edit_uri_template': 'blob/main/README.md',
+            'plugins': ['mike'],
         }
 
 
@@ -342,7 +311,7 @@ def build_mkdocs_config():
         readme_nav = split_readme_new(
             readme_file=work_dir/args.readme,
             docs_dir=work_dir/config_data['docs_dir'],
-            work_dir=work_dir
+            pipeline_repo=args.pipeline_repo
         )
 
         config_data['nav'] = readme_nav + config_data['nav']
