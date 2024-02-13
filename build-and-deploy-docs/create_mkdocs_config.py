@@ -117,7 +117,7 @@ class Page:
     def get_filename(self):
         "Get the associated filename."
         if not self.filename:
-            return get_heading_anchor(self.title) + ".md"
+            return f"{get_heading_anchor(self.title)}.md"
         return self.filename
 
 
@@ -316,7 +316,7 @@ def build_mkdocs_config():
     # Sanity-check that we're not trying to reach outside the repository
     if Path(config_data["docs_dir"]).is_absolute():
         raise ValueError(
-            f"MkDocs doc_dir={config_data['docs_dir']} cannot be absolute!"
+            f"MkDocs docs_dir={config_data['docs_dir']} cannot be absolute!"
         )
 
     if args.readme:
