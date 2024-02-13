@@ -86,13 +86,14 @@ def parse_args():
     # Make sure the referenced files exist and are within this repository
     if args.mkdocs_config is not None:
         args.mkdocs_config = (args.pipeline_dir / args.mkdocs_config).resolve()
-        if not args.mkdoc_config.exists():
-            parser.error(f"Config file {args.mkdocs_config} not found!")
 
         if not args.mkdocs_config.is_relative_to(args.pipeline_dir):
             parser.error(
                 f"Config file {args.mkdocs_config} outside of repository!"
             )
+
+        if not args.mkdocs_config.exists():
+            parser.error(f"Config file {args.mkdocs_config} not found!")
 
     args.readme = (args.pipeline_dir / args.readme).resolve()
     if not args.readme.exists():
