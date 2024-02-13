@@ -36,6 +36,17 @@ VALID_IMAGE_MIME_TYPES = {
 }
 
 
+def repo_name_type(value: str) -> str:
+    "An argparse type for GitHub repo names of the form `org/repo`."
+    fragments = value.split("/")
+    if len(fragments) != 2 \
+            or not fragments[0].strip() \
+            or not fragments[1].strip():
+        raise ValueError(f"{value} doesn't match the form 'orgname/reponame'")
+
+    return value
+
+
 def parse_args():
     """ parse args """
     parser = argparse.ArgumentParser()
@@ -48,7 +59,7 @@ def parse_args():
     )
     parser.add_argument(
         '--pipeline-repo',
-        type=str,
+        type=repo_name_type,
         required=True,
         help='Pipeline repo name. Should be set to GITHUB_REPOSITORY '
         ' when called from github action.'
