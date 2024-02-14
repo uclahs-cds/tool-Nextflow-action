@@ -435,7 +435,7 @@
       "withName:remove_unmerged_BAMs",
       "withName:remove_merged_BAM"
     ],
-    "proc_names": "[Ljava.lang.String;@7cf166db",
+    "proc_names": "[Ljava.lang.String;@55a29589",
     "process": {
       "cache": false,
       "containerOptions": {
