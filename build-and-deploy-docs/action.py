@@ -3,11 +3,12 @@
 GitHub Action to build and deploy docs from the README.
 """
 import argparse
+import datetime
+import functools
 import json
 import os
 import re
 import subprocess
-import functools
 import sys
 
 from pathlib import Path
@@ -22,7 +23,11 @@ TAG_REGEX = re.compile(r"""
     (?P<minor>\d+)          # Minor version
     \.                      # Dot
     (?P<patch>\d+)          # Patch version
-    (?:-rc\.(?P<rc>\d+))?  # Optional release candidate version
+    (?:-rc\.(?P<rc>\d+))?   # Optional release candidate version
+    (?:                     # Optional `git describe` addition
+        -(?P<depth>\d+)     #   Commits since last tag
+        -g(?P<hash>\w+)     #   Commit hash
+    )?
     """, re.VERBOSE)
 
 
@@ -30,37 +35,53 @@ def sort_key(version_str: str, strings_high: bool):
     """
     Return a key suitable for sorting version strings.
 
-    Release candidates are weird. Here is a correctly ordered list:
+    Release candidates and `git describe` tags are weird. Here is a correctly
+    ordered list (highest to lowest):
 
-    v1.2.3
-    v1.2.4-rc.1
-    v1.2.4-rc.2
     v1.2.4
+    v1.2.4-rc.2-1-gXXXXX
+    v1.2.4-rc.2
+    v1.2.4-rc.1
+    v1.2.3
 
     In order to handle the rule that an absent RC outranks all RCs, an
     absent RC is treated as sys.maxsize.
 
+    In order to sort post-tag commits above the tags, an absent commits number
+    is treated as 0.
+
     If `strings_high` is True, non-version strings (like "development") are
     ranked higher than all version strings.
     """
-    try:
-        numbers = TAG_REGEX.match(version_str).groups()
+    match = TAG_REGEX.match(version_str)
+    if match:
+        numbers = match.groupdict()
 
         return (
-            int(numbers[0]),
-            int(numbers[1]),
-            int(numbers[2]),
-            int(numbers[3]) if numbers[3] else sys.maxsize
+            int(numbers['major']),
+            int(numbers['minor']),
+            int(numbers['patch']),
+            int(numbers['rc']) if numbers['rc'] else sys.maxsize,
+            int(numbers['depth']) if numbers['depth'] else 0
         )
-    except AttributeError:
-        return (
-            sys.maxsize if strings_high else -1,
-            version_str
-        )
+
+    return (
+        sys.maxsize if strings_high else -1,
+        version_str
+    )
 
 
 strings_low_key = functools.partial(sort_key, strings_high=False)
 strings_high_key = functools.partial(sort_key, strings_high=True)
+
+
+def is_release_candidate(version_str: str):
+    "Return True if the version string corresponds to a release candidate."
+    match = TAG_REGEX.match(version_str)
+    if match:
+        return match.groupdict()['rc'] is not None
+
+    return False
 
 
 def setup_git():
@@ -100,8 +121,82 @@ def setup_git():
     subprocess.check_call(["git", "fetch", "--tags"])
 
 
-def get_version_and_alias():
-    "Return a tuple of (version, alias) for the current commit."
+def current_is_development(mike_versions: dict, head_props: dict) -> bool:
+    """
+    Return True if the current commit should be aliases as "development".
+
+    This commit will get the alias "development" if either:
+    * It includes the current development version as an ancestor
+    * It is not an ancestor of the current development version _and_ it has a
+    more recent commit date (this protects against weird branches cases)
+    """
+    dev_version = mike_versions.get("development", None)
+
+    if not dev_version:
+        # There is no development version, so this commit might as well be it!
+        return True
+
+    if "properties" not in dev_version:
+        # There are no properties established, so this one is probably newer
+        return True
+
+    dev_hash = dev_version["properties"].get("commit", None)
+    dev_date = dev_version["properties"].get("date", None)
+
+    if not dev_hash or not dev_date:
+        # There are no properties established, so this one is probably newer
+        return True
+
+    if subprocess.call(
+            ["git", "merge-base", "--is-ancestor", dev_hash, "HEAD"]) == 0:
+        # The current development commit is an ancestor
+        return True
+
+    if subprocess.call(
+            ["git", "merge-base", "--is-ancestor", "HEAD", dev_hash]) == 0:
+        # The current development commit is a descendant
+        return False
+
+    # Okay, the commits are unrelated. This generally shouldn't happen, but
+    # just in case it does...
+    return datetime.datetime.fromisoformat(head_props["date"]) > \
+        datetime.datetime.fromisoformat(dev_date)
+
+
+def get_mike_versions():
+    "Return a dictionary of current documented versions."
+    # Get all doc versions
+    doc_versions = json.loads(
+        subprocess.check_output(["mike", "list", "--json"])
+    )
+
+    # Reformat the result into a dictionary mapped by versions
+    return {
+        item["version"]: item for item in doc_versions
+    }
+
+
+def get_versions_and_aliases():
+    """
+    Return multiple tuples of (version, aliases, props) for the current commit.
+
+    Versions:
+    A commit gets a stable version for each tag referencing it.
+
+    Aliases:
+    This commit will get the alias "latest" if it has the highest-ordered
+    non-release-candidate tag.
+
+    This commit will get the alias "release-candidate" if it has the
+    highest-ordered tag of the documented versions (regardless of whether or
+    not that tag is actually a release candidate). This is to ensure that
+    "release-candidate" doesn't lag behind "latest".
+
+    This commit will get the alias "development" if either:
+    * It includes the current development version as an ancestor
+    * It is not an ancestor of the current development version _and_ it has a
+    more recent commit date (this protects against weird branches cases)
+    """
     # Get all tags pointing to the current commit
     head_tags = [
         tag.strip() for tag in
@@ -111,23 +206,86 @@ def get_version_and_alias():
         if TAG_REGEX.match(tag.strip())
     ]
 
+    aliases = set()
+    props = {}
+
+    # All of the versions should share these properties
+    props["commit"] = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"]
+    ).decode("utf-8").strip()
+    props["date"] = subprocess.check_output(
+        ["git", "show", "HEAD", "--format=%cI", "--no-patch"]
+    ).decode("utf-8").strip()
+
+    mike_versions = get_mike_versions()
+
+    # This should only happen on the very documentation build
+    if not mike_versions:
+        aliases.add("latest")
+
+    if current_is_development(mike_versions, props):
+        aliases.add("development")
+
+    result = []
+
     if not head_tags:
-        # This is an untagged commit - use "development" as the version
-        return ("development", None)
+        # Untagged commit - mark it as hidden and return a single version
+        props["hidden"] = True
 
-    highest_head_tag = max(head_tags, key=strings_low_key)
+        describe_version = subprocess.check_output(
+            ["git", "describe", "--tags", "--match", "v[0-9]*", "--always"]
+        ).decode("utf-8").strip()
 
-    # Get all doc versions
-    doc_versions = [
-        item["version"] for item in
-        json.loads(subprocess.check_output(["mike", "list", "--json"]))
-    ]
-    highest_doc_tag = max(doc_versions, default="v0.0.0", key=strings_low_key)
+        result.append((describe_version, aliases, props))
 
-    if strings_low_key(highest_head_tag) > strings_low_key(highest_doc_tag):
-        return (highest_head_tag, "latest")
+        return result
 
-    return (highest_head_tag, None)
+    # Return a version for each tag
+    head_tags.sort(key=strings_low_key)
+
+    highest_mike_version = max(
+        mike_versions.keys(),
+        key=strings_low_key,
+        default="v0.0.0"
+    )
+
+    highest_nonrc_mike_version = max(
+        (key for key in mike_versions.keys() if not is_release_candidate(key)),
+        key=strings_low_key,
+        default="v0.0.0"
+    )
+
+    for tag in head_tags:
+        mike_commit = mike_versions.get(tag, {})\
+            .get("properties", {})\
+            .get("commit", None)
+
+        if mike_commit == props["commit"]:
+            # We've already documented this tag
+            continue
+
+        # This is a new tag. Figure out what aliases it needs.
+        tag_aliases = set()
+
+        if strings_low_key(tag) > strings_low_key(highest_mike_version):
+            # This tag ranks higher than any current tag, so mark it as the
+            # release candidate.
+            tag_aliases.add("release-candidate")
+
+        if not is_release_candidate(tag) and \
+                strings_low_key(tag) > \
+                strings_low_key(highest_nonrc_mike_version):
+            # This tag ranks higher than any current non-RC tag, so mark it as
+            # the release.
+            tag_aliases.add("latest")
+
+        result.append((
+            tag,
+            aliases | tag_aliases,
+            props
+        ))
+
+    return result
 
 
 def run_action(mkdocs_config, readme):
@@ -142,17 +300,24 @@ def run_action(mkdocs_config, readme):
         mkdocs_config=Path(mkdocs_config)
     )
 
-    mike_args = ["mike", "deploy", "--config-file", config_file]
+    for (version, aliases, props) in get_versions_and_aliases():
+        mike_args = [
+            "mike",
+            "deploy",
+            "--config-file",
+            config_file,
+            "--prop-set-all",
+            json.dumps(props)
+        ]
 
-    version, alias = get_version_and_alias()
+        if aliases:
+            mike_args.extend(["--update-aliases", version])
+            mike_args.extend(list(aliases))
+        else:
+            mike_args.append(version)
 
-    if alias is not None:
-        mike_args.extend(["--update-aliases", version, alias])
-    else:
-        mike_args.append(version)
-
-    # Build the docs as a commit on the gh-pages branch
-    subprocess.check_call(mike_args)
+        # Build the docs as a commit on the gh-pages branch
+        subprocess.check_call(mike_args)
 
     # Redirect from the base site to the latest version. This will be a no-op
     # after the very first deployment, but it will not cause problems
