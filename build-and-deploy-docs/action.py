@@ -100,7 +100,7 @@ def setup_git():
     subprocess.check_call(["git", "fetch", "--tags"])
 
 
-def get_version_and_alias() -> tuple(str, str | None):
+def get_version_and_alias():
     "Return a tuple of (version, alias) for the current commit."
     # Get all tags pointing to the current commit
     head_tags = [
