@@ -26,8 +26,7 @@ TAG_REGEX = re.compile(r"""
     """, re.VERBOSE)
 
 
-def sort_key(version_str: str,
-             strings_high: bool) -> tuple(int, int, int, int):
+def sort_key(version_str: str, strings_high: bool):
     """
     Return a key suitable for sorting version strings.
 
