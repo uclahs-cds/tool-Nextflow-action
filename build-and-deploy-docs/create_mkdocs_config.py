@@ -77,34 +77,7 @@ def parse_args():
         default=Path('README.md')
     )
 
-    args = parser.parse_args()
-
-    # Handle GitHub Actions passing the literal default value "None"
-    if args.mkdocs_config is not None and args.mkdocs_config.name == 'None':
-        args.mkdocs_config = None
-
-    # Make sure the referenced files exist and are within this repository
-    if args.mkdocs_config is not None:
-        args.mkdocs_config = (args.pipeline_dir / args.mkdocs_config).resolve()
-
-        if not args.mkdocs_config.is_relative_to(args.pipeline_dir):
-            parser.error(
-                f"Config file {args.mkdocs_config} outside of repository!"
-            )
-
-        if not args.mkdocs_config.exists():
-            parser.error(f"Config file {args.mkdocs_config} not found!")
-
-    args.readme = (args.pipeline_dir / args.readme).resolve()
-    if not args.readme.exists():
-        parser.error(f"README {args.readme} not found!")
-
-    if not args.readme.is_relative_to(args.pipeline_dir):
-        parser.error(
-            f"README {args.readme} outside of repository!"
-        )
-
-    return args
+    return parser.parse_args()
 
 
 def get_heading_anchor(text):
@@ -318,12 +291,36 @@ def get_mkdocs_config_data(path: Path, repo: str):
     return config
 
 
-def build_mkdocs_config():
+def build_mkdocs_config(pipeline_dir: Path,
+                        pipeline_repo: str,
+                        readme: Path,
+                        mkdocs_config: Path | None) -> Path:
     """ Build the mkdocs config file. """
-    args = parse_args()
+    # Validate the arguments
+    # Handle GitHub Actions passing the literal default value "None"
+    if mkdocs_config is not None and mkdocs_config.name == 'None':
+        mkdocs_config = None
 
-    config_data = get_mkdocs_config_data(
-        args.mkdocs_config, args.pipeline_repo)
+    # Make sure the referenced files exist and are within this repository
+    if mkdocs_config is not None:
+        mkdocs_config = (pipeline_dir / mkdocs_config).resolve()
+
+        if not mkdocs_config.is_relative_to(pipeline_dir):
+            raise ValueError(
+                f"Config file {mkdocs_config} outside of repository!"
+            )
+
+        if not mkdocs_config.exists():
+            raise ValueError(f"Config file {mkdocs_config} not found!")
+
+    readme = (pipeline_dir / readme).resolve()
+    if not readme.exists():
+        raise ValueError(f"README {readme} not found!")
+
+    if not readme.is_relative_to(pipeline_dir):
+        raise ValueError(f"README {readme} outside of repository!")
+
+    config_data = get_mkdocs_config_data(mkdocs_config, pipeline_repo)
 
     # Sanity-check that we're not trying to reach outside the repository
     if Path(config_data["docs_dir"]).is_absolute():
@@ -331,16 +328,15 @@ def build_mkdocs_config():
             f"MkDocs docs_dir={config_data['docs_dir']} cannot be absolute!"
         )
 
-    if args.readme:
-        readme_nav = split_readme(
-            readme_file=args.readme,
-            docs_dir=args.pipeline_dir/config_data['docs_dir'],
-            pipeline_repo=args.pipeline_repo
-        )
+    readme_nav = split_readme(
+        readme_file=readme,
+        docs_dir=pipeline_dir/config_data['docs_dir'],
+        pipeline_repo=pipeline_repo
+    )
 
-        config_data['nav'] = readme_nav + config_data['nav']
+    config_data['nav'] = readme_nav + config_data['nav']
 
-    output_config = Path(args.pipeline_dir, "mkdocs.yml")
+    output_config = Path(pipeline_dir, "mkdocs.yml")
 
     with output_config.open("w", encoding="utf-8") as outfile:
         yaml.safe_dump(
@@ -349,6 +345,14 @@ def build_mkdocs_config():
             explicit_start=True,
             sort_keys=False)
 
+    return output_config
+
 
 if __name__ == '__main__':
-    build_mkdocs_config()
+    ARGS = parse_args()
+    build_mkdocs_config(
+        pipeline_dir=ARGS.pipeline_dir,
+        pipeline_repo=ARGS.pipeline_repo,
+        readme=ARGS.readme,
+        mkdocs_config=ARGS.mkdocs_config
+    )
