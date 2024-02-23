@@ -50,7 +50,7 @@ def sort_key(version_str: str, strings_high: bool):
             int(numbers[0]),
             int(numbers[1]),
             int(numbers[2]),
-            int(numbers[4]) if numbers[4] else sys.maxsize
+            int(numbers[3]) if numbers[3] else sys.maxsize
         )
     except AttributeError:
         return (
