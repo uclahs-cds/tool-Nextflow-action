@@ -7,11 +7,9 @@ from pathlib import Path
 from configtest import NextflowConfigTest
 
 
-def run_recalibrate_bam_test(pipeline: Path):
+def run_pipeline_test(pipeline: Path, test_case: Path):
     "Run the bundled pipeline-recalibrate-BAM test."
-    testobj = NextflowConfigTest.from_file(
-        Path(__file__).resolve().parent / "recalibrate-bam.json"
-    )
+    testobj = NextflowConfigTest.from_file(test_case)
 
     if testobj.check_results(pipeline):
         print("No changes!")
@@ -21,7 +19,8 @@ def run_recalibrate_bam_test(pipeline: Path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("recalibrate_bam_path")
+    parser.add_argument("pipeline_path")
+    parser.add_argument("test_path")
 
     args = parser.parse_args()
-    run_recalibrate_bam_test(Path(args.recalibrate_bam_path))
+    run_pipeline_test(Path(args.pipeline_path), Path(args.test_path))
