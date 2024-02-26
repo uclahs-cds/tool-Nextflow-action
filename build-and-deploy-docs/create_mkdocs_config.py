@@ -15,7 +15,7 @@ import shutil
 from urllib.parse import urlparse, urlunparse
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import magic
 import mdformat
@@ -294,7 +294,7 @@ def get_mkdocs_config_data(path: Path, repo: str):
 def build_mkdocs_config(pipeline_dir: Path,
                         pipeline_repo: str,
                         readme: Path,
-                        mkdocs_config: Path | None) -> Path:
+                        mkdocs_config: Optional[Path]) -> Path:
     """ Build the mkdocs config file. """
     # Validate the arguments
     # Handle GitHub Actions passing the literal default value "None"
