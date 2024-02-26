@@ -23,4 +23,4 @@ if __name__ == "__main__":
     parser.add_argument("test_path")
 
     args = parser.parse_args()
-    run_pipeline_test(Path(args.pipeline_path), Path(args.test_path))
+    run_pipeline_test(Path(args.pipeline_path).resolve(), Path(args.test_path))
