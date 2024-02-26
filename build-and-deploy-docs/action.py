@@ -123,9 +123,9 @@ def setup_git():
 
 def current_is_development(mike_versions: dict, head_props: dict) -> bool:
     """
-    Return True if the current commit should be aliases as "development".
+    Return True if the current commit should be versioned as "development".
 
-    This commit will get the alias "development" if either:
+    This commit will be marked "development" if either:
     * It includes the current development version as an ancestor
     * It is not an ancestor of the current development version _and_ it has a
     more recent commit date (this protects against weird branches cases)
@@ -183,6 +183,11 @@ def get_versions_and_aliases():
     Versions:
     A commit gets a stable version for each tag referencing it.
 
+    This commit will also get the version "development" if either:
+    * It includes the current development version as an ancestor
+    * It is not an ancestor of the current development version _and_ it has a
+    more recent commit date (this protects against weird branches cases)
+
     Aliases:
     This commit will get the alias "latest" if it has the highest-ordered
     non-release-candidate tag.
@@ -191,11 +196,6 @@ def get_versions_and_aliases():
     highest-ordered tag of the documented versions (regardless of whether or
     not that tag is actually a release candidate). This is to ensure that
     "release-candidate" doesn't lag behind "latest".
-
-    This commit will get the alias "development" if either:
-    * It includes the current development version as an ancestor
-    * It is not an ancestor of the current development version _and_ it has a
-    more recent commit date (this protects against weird branches cases)
     """
     # Get all tags pointing to the current commit
     head_tags = [
@@ -219,26 +219,14 @@ def get_versions_and_aliases():
 
     mike_versions = get_mike_versions()
 
-    # This should only happen on the very documentation build
+    # This should only happen on the very first documentation build
     if not mike_versions:
         aliases.add("latest")
 
-    if current_is_development(mike_versions, props):
-        aliases.add("development")
-
     result = []
 
-    if not head_tags:
-        # Untagged commit - mark it as hidden and return a single version
-        props["hidden"] = True
-
-        describe_version = subprocess.check_output(
-            ["git", "describe", "--tags", "--match", "v[0-9]*", "--always"]
-        ).decode("utf-8").strip()
-
-        result.append((describe_version, aliases, props))
-
-        return result
+    if current_is_development(mike_versions, props):
+        result.append(("development", aliases, props))
 
     # Return a version for each tag
     head_tags.sort(key=strings_low_key)
