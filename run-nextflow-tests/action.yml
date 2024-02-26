@@ -1,0 +1,8 @@
+---
+name: 'Run Nextflow configuration tests'
+description: 'Create compressed tar of repository with submodules'
+
+runs:
+  using: "composite"
+  steps:
+    uses: ./workflow.yml

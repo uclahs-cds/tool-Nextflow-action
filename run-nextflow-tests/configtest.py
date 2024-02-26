@@ -4,6 +4,7 @@ The class representation of a Nextflow configuration test.
 import dataclasses
 import itertools
 import json
+import os
 import re
 import subprocess
 import tempfile
@@ -12,7 +13,7 @@ import textwrap
 from contextlib import ExitStack
 from pathlib import Path
 
-from utils import build_image, parse_config, diff_json
+from utils import parse_config, diff_json
 
 
 @dataclasses.dataclass
@@ -177,7 +178,7 @@ class NextflowConfigTest(ConfigTest):
                         "--detach",
                         *mount_args,
                         *envvar_args,
-                        build_image(),
+                        os.environ.get("INPUT_IMAGE")
                     ],
                     capture_output=True,
                     check=True,

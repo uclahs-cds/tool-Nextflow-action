@@ -2,34 +2,13 @@
 Utility methods.
 """
 import collections.abc
-import subprocess
 import itertools
 import re
 import json
 
-from pathlib import Path
-
 
 ESCAPE_RE = re.compile(r"([^\\])\\([ =:])")
 CLOSURE_RE = re.compile(r"^Script\S+_run_closure")
-
-
-def build_image() -> str:
-    "Build the image and return the name."
-    image = "configtester"
-    context_dir = Path(__file__).resolve().parent
-    try:
-        subprocess.run(
-            ["docker", "build", context_dir, "-t", image],
-            capture_output=True,
-            check=True
-        )
-    except subprocess.CalledProcessError as err:
-        print(err.stdout.decode("utf-8"))
-        print(err.stderr.decode("utf-8"))
-        raise
-
-    return image
 
 
 def diff_json(alpha, beta):
