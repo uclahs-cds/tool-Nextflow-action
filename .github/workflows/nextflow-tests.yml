@@ -48,12 +48,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: docker pull ghcr.io/uclahs-cds/nextflow-config-test:23.10.0
-
       - run: |
           docker run \
             --rm \
-            -v ${{ github.workspace}}:${ github.workspace }} \
+            -v ${{ github.workspace}}:${{ github.workspace }} \
             -w ${{ github.workspace }} \
             ghcr.io/uclahs-cds/nextflow-config-test:23.10.0 \
               ${{ github.workspace }} \
