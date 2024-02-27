@@ -41,8 +41,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - shell: python
-        with:
-          image: ghcr.io/uclahs-cds/nextflow-config-test:testing
         run: |
           import sys
           from pathlib import Path
@@ -50,8 +48,10 @@ jobs:
           from configtest import NextflowConfigTest
 
           clean = NextflowConfigTest.from_file(
-              "${{ matrix.testfile }}"
-          ).check_results(Path(".").resolve())
+              "${{ matrix.testfile }}").check_results(
+                  Path(".").resolve(),
+                  "ghcr.io/uclahs-cds/nextflow-config-test:testing"
+              )
 
           if not clean:
               sys.exit(1)

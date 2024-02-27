@@ -43,7 +43,7 @@ class ConfigTest:
 
         return cls(**data)
 
-    def check_results(self, pipeline_dir: Path) -> bool:
+    def check_results(self, pipeline_dir: Path, image_name: str) -> bool:
         "Run the test against the given pipeline directory."
         raise NotImplementedError()
 
@@ -74,7 +74,7 @@ class NextflowConfigTest(ConfigTest):
         super().__init__(*args, **kwargs)
         self.filepath = None
 
-    def _run_test(self, pipeline_dir: Path):
+    def _run_test(self, pipeline_dir: Path, image_name: str):
         "Get the resolved config of this pipepline."
         # pylint: disable=too-many-locals
         with ExitStack() as stack:
@@ -178,7 +178,7 @@ class NextflowConfigTest(ConfigTest):
                         "--detach",
                         *mount_args,
                         *envvar_args,
-                        os.environ.get("INPUT_IMAGE")
+                        image_name
                     ],
                     capture_output=True,
                     check=True,
@@ -218,9 +218,9 @@ class NextflowConfigTest(ConfigTest):
             print(config_output)
             raise
 
-    def check_results(self, pipeline_dir: Path) -> bool:
+    def check_results(self, pipeline_dir: Path, image_name: str) -> bool:
         "Compare the results."
-        result = self._run_test(pipeline_dir)
+        result = self._run_test(pipeline_dir, image_name)
 
         # These are namespaces defined in the common submodules
         boring_keys = {
