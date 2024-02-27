@@ -12,6 +12,7 @@ import textwrap
 
 from contextlib import ExitStack
 from pathlib import Path
+from typing import List, Dict
 
 from utils import parse_config, diff_json
 
@@ -20,20 +21,20 @@ from utils import parse_config, diff_json
 class ConfigTest:
     "A class representing a single Nextflow configuration test."
     # pylint: disable=too-many-instance-attributes
-    config: list[str]
+    config: List[str]
     params_file: str
     cpus: int
     memory_gb: float
 
-    empty_files: list[str]
-    mapped_files: dict[str, str]
-    nf_params: dict[str, str]
-    envvars: dict[str, str]
-    mocks: dict
+    empty_files: List[str]
+    mapped_files: Dict[str, str]
+    nf_params: Dict[str, str]
+    envvars: Dict[str, str]
+    mocks: Dict
 
-    dated_fields: list[str]
+    dated_fields: List[str]
 
-    expected_result: dict
+    expected_result: Dict
 
     @classmethod
     def from_file(cls, filepath: Path):
@@ -43,7 +44,7 @@ class ConfigTest:
 
         return cls(**data)
 
-    def check_results(self, pipeline_dir: Path, image_name: str) -> bool:
+    def check_results(self, pipeline_dir: Path) -> bool:
         "Run the test against the given pipeline directory."
         raise NotImplementedError()
 
@@ -61,7 +62,6 @@ class ConfigTest:
 class NextflowConfigTest(ConfigTest):
     "A subclass."
     SENTINEL = "=========SENTINEL_OUTPUT=========="
-    CONTAINER_DIR = Path("/mnt/bl_tests")
 
     @classmethod
     def from_file(cls, filepath: Path):
@@ -74,14 +74,12 @@ class NextflowConfigTest(ConfigTest):
         super().__init__(*args, **kwargs)
         self.filepath = None
 
-    def _run_test(self, pipeline_dir: Path, image_name: str):
+    def _run_test(self, pipeline_dir: Path):
         "Get the resolved config of this pipepline."
         # pylint: disable=too-many-locals
-        with ExitStack() as stack:
-            # Make a temporary directory on the host to hold all of the
-            # scaffolding files for this test
-            tempdir = stack.enter_context(tempfile.TemporaryDirectory())
-
+        # Make a temporary directory on the host to hold all of the
+        # scaffolding files for this test
+        with tempfile.TemporaryDirectory() as tempdir:
             # Make a wrapper config file that will mock out the system calls
             # before including the real config file(s)
             config_file = Path(tempdir, "docker_test.config")
@@ -130,85 +128,37 @@ class NextflowConfigTest(ConfigTest):
                 encoding="utf-8"
             )
 
-            # Generate a list of volume-mount arguments
-            mounts = [
-                (pipeline_dir, pipeline_dir),
-                (tempdir, self.CONTAINER_DIR),
-            ]
-
-            for empty_file in self.empty_files:
-                mounts.append([
-                    stack.enter_context(tempfile.NamedTemporaryFile()).name,
-                    empty_file
-                ])
-
-            mount_args = []
-
-            for hpath, cpath in itertools.chain(mounts, self.mapped_files):
-                mount_args.extend(
-                    ["--volume", f"{pipeline_dir / hpath}:{cpath}"]
-                )
-
             # Generate a list of environment variable arguments
             envvars = {
+                **os.environ,
                 **self.envvars,
-                "BL_PIPELINE_DIR": pipeline_dir,
-                "BL_CONFIG_FILE": self.CONTAINER_DIR / config_file.name,
-                "BL_MOCKS_FILE": self.CONTAINER_DIR / mocks_file.name,
-                "BL_CLI_PARAMS_FILE":
-                    self.CONTAINER_DIR / cli_params_file.name,
+                "BL_PIPELINE_DIR": str(pipeline_dir),
+                "BL_CONFIG_FILE": str(config_file),
+                "BL_MOCKS_FILE": str(mocks_file),
+                "BL_CLI_PARAMS_FILE": str(cli_params_file),
             }
 
             if self.params_file:
-                envvars["BL_PARAMS_FILE"] = pipeline_dir / self.params_file
-
-            envvar_args = []
-            for key, value in envvars.items():
-                envvar_args.extend(["--env", f"{key}={value}"])
-
-            container_id = None
+                envvars["BL_PARAMS_FILE"] = str(pipeline_dir / self.params_file)
 
             try:
                 # Launch the docker container in the background and immediately
                 # capture the container ID (so that we can clean up afterwards)
-                container_id = subprocess.run(
+                config_output = subprocess.run(
                     [
-                        "docker",
-                        "run",
-                        "--detach",
-                        *mount_args,
-                        *envvar_args,
-                        image_name
+                        "/usr/local/bin/nextflow-config-test",
+                        "/usr/local/bltests/betterconfig.groovy",
                     ],
+                    env=envvars,
                     capture_output=True,
                     check=True,
                 ).stdout.decode("utf-8").strip()
-
-                process = subprocess.run(
-                    ["docker", "attach", container_id],
-                    capture_output=True,
-                    check=True
-                )
-                config_output = process.stdout.decode("utf-8")
 
             except subprocess.CalledProcessError as err:
                 print(err.cmd)
                 print(err.stdout.decode("utf-8"))
                 print(err.stderr.decode("utf-8"))
                 raise
-
-            finally:
-                if container_id is not None:
-                    subprocess.run(
-                        ["docker", "stop", container_id],
-                        capture_output=True,
-                        check=False,
-                    )
-                    subprocess.run(
-                        ["docker", "rm", container_id],
-                        capture_output=True,
-                        check=False
-                    )
 
         config_text = config_output.rsplit(self.SENTINEL, maxsplit=1)[-1]
 
@@ -218,9 +168,9 @@ class NextflowConfigTest(ConfigTest):
             print(config_output)
             raise
 
-    def check_results(self, pipeline_dir: Path, image_name: str) -> bool:
+    def check_results(self, pipeline_dir: Path) -> bool:
         "Compare the results."
-        result = self._run_test(pipeline_dir, image_name)
+        result = self._run_test(pipeline_dir)
 
         # These are namespaces defined in the common submodules
         boring_keys = {
@@ -254,7 +204,8 @@ class NextflowConfigTest(ConfigTest):
                 print("------")
 
             if self.filepath:
-                outpath = self.filepath.with_stem(self.filepath.stem + "-out")
+                outpath = self.filepath.with_name(
+                    self.filepath.stem + "-out.json")
                 print("Saving updated file to", outpath)
                 dataclasses.replace(
                     self,
