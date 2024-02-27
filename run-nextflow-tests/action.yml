@@ -1,8 +1,0 @@
----
-name: 'Run Nextflow configuration tests'
-
-runs:
-  using: "composite"
-  steps:
-    - uses: actions/checkout@v4
-    - uses: ${{ github.action_path }}/workflow.yml

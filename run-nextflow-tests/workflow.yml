@@ -2,10 +2,7 @@
 name: 'Nextflow tests'
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - add_action
+  workflow-call:
 
 # Inspired by https://blog.aspect.dev/github-actions-dynamic-matrix
 jobs:
