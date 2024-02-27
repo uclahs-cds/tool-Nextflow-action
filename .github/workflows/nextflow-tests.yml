@@ -42,4 +42,4 @@ jobs:
         with:
           submodules: true
 
-      - uses: docker://ghcr.io/uclahs-cds/nextflow-config-test:testing
+      - uses: docker://ghcr.io/uclahs-cds/nextflow-config-test:23.10.0
