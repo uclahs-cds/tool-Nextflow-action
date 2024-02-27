@@ -48,11 +48,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: |
+      - id: dockertest
+        run: |
           docker run \
             --rm \
             -v ${{ github.workspace}}:${{ github.workspace }} \
             -w ${{ github.workspace }} \
             ghcr.io/uclahs-cds/nextflow-config-test:23.10.0 \
               ${{ github.workspace }} \
-              ${{ matrix.testfile }}
+              ${{ matrix.testfile }} \
+              --overwrite
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.testfile }}
+          path: ${{ matrix.testfile }}
+        if: ${{ failure() && steps.dockertest.conclusion == 'failure' }}

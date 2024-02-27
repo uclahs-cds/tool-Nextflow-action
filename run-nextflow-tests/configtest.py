@@ -44,7 +44,7 @@ class ConfigTest:
 
         return cls(**data)
 
-    def check_results(self, pipeline_dir: Path) -> bool:
+    def check_results(self, pipeline_dir: Path, overwrite: bool) -> bool:
         "Run the test against the given pipeline directory."
         raise NotImplementedError()
 
@@ -168,7 +168,7 @@ class NextflowConfigTest(ConfigTest):
             print(config_output)
             raise
 
-    def check_results(self, pipeline_dir: Path) -> bool:
+    def check_results(self, pipeline_dir: Path, overwrite: bool) -> bool:
         "Compare the results."
         result = self._run_test(pipeline_dir)
 
@@ -204,8 +204,12 @@ class NextflowConfigTest(ConfigTest):
                 print("------")
 
             if self.filepath:
-                outpath = self.filepath.with_name(
-                    self.filepath.stem + "-out.json")
+                if not overwrite:
+                    outpath = self.filepath.with_name(
+                        self.filepath.stem + "-out.json")
+                else:
+                    outpath = self.filepath
+
                 print("Saving updated file to", outpath)
                 dataclasses.replace(
                     self,
