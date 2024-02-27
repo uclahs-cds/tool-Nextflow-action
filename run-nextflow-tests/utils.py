@@ -9,6 +9,7 @@ import json
 
 ESCAPE_RE = re.compile(r"([^\\])\\([ =:])")
 CLOSURE_RE = re.compile(r"^Script\S+_run_closure")
+POINTER_RE = re.compile(r"^(\[?Ljava\..*;@)(\w+)$")
 
 
 def diff_json(alpha, beta):
@@ -72,6 +73,10 @@ def parse_value(value_str: str):
     except TypeError:
         print(value_str)
         raise
+
+    # Mask any memory addresses
+    if POINTER_RE.match(value_str):
+        return POINTER_RE.sub(r"\1dec0ded", value_str)
 
     if value_str and value_str[0] == "[" and value_str[-1] == "]":
         value = []
