@@ -37,9 +37,13 @@ jobs:
       matrix:
         testfile: ${{ fromJSON(needs.discover-tests.outputs.testfiles) }}
 
+    container:
+      image: docker://ghcr.io/uclahs-cds/nextflow-config-test:23.10.0
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-
-      - uses: docker://ghcr.io/uclahs-cds/nextflow-config-test:23.10.0
