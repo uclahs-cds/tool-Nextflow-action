@@ -39,22 +39,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
-      - shell: python
-        run: |
-          import sys
-          from pathlib import Path
-
-          print("${{ github.action_path }}")
-          print(list(Path("${{ github.action_path }}").iterdir()))
-
-          from configtest import NextflowConfigTest
-
-          clean = NextflowConfigTest.from_file(
-              "${{ matrix.testfile }}").check_results(
-                  Path(".").resolve(),
-                  "ghcr.io/uclahs-cds/nextflow-config-test:testing"
-              )
-
-          if not clean:
-              sys.exit(1)
+      - uses: docker://ghcr.io/uclahs-cds/nextflow-config-test:testing
