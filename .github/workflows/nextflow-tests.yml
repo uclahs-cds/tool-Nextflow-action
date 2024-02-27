@@ -45,6 +45,9 @@ jobs:
           import sys
           from pathlib import Path
 
+          print("${{ github.action_path }}")
+          print(list(Path("${{ github.action_path }}").iterdir()))
+
           from configtest import NextflowConfigTest
 
           clean = NextflowConfigTest.from_file(
