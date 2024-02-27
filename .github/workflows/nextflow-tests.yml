@@ -61,6 +61,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.testfile }}
           path: ${{ matrix.testfile }}
         if: ${{ failure() && steps.dockertest.conclusion == 'failure' }}
