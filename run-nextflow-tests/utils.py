@@ -5,11 +5,13 @@ import collections.abc
 import itertools
 import re
 import json
+from typing import List
 
 
 ESCAPE_RE = re.compile(r"([^\\])\\([ =:])")
 CLOSURE_RE = re.compile(r"^Script\S+_run_closure")
 POINTER_RE = re.compile(r"^(\[?Ljava\..*;@)(\w+)$")
+DATE_RE = re.compile(r"\d{8}T\d{6}Z")
 
 
 def diff_json(alpha, beta):
@@ -130,7 +132,7 @@ def parse_value(value_str: str):
     return ESCAPE_RE.sub(r"\1\2", value_str.strip())
 
 
-def parse_config(config_str: str) -> dict:
+def parse_config(config_str: str, dated_fields: List[str]) -> dict:
     "Parse a string of Java properties."
     param_re = re.compile(r"^(?P<key>\S+?[^\\])=(?P<value>.*)$")
 
@@ -160,7 +162,12 @@ def parse_config(config_str: str) -> dict:
             print(f"The offending line is `{line}`")
             raise
 
-        assign_value(config, ESCAPE_RE.sub(r"\1\2", key), value)
+        escaped_key = ESCAPE_RE.sub(r"\1\2", key)
+        if escaped_key in dated_fields:
+            # Replace the date with Pathfinder's landing
+            value = DATE_RE.sub("19970704T165655Z", value)
+
+        assign_value(config, escaped_key, value)
 
     # Specifically sort the config
     return json.loads(json.dumps(config, sort_keys=True))

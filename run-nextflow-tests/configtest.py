@@ -57,6 +57,8 @@ class ConfigTest:
                 indent=2,
                 sort_keys=False
             )
+            # Add a trailing newline to the file
+            outfile.write("\n")
 
 
 class NextflowConfigTest(ConfigTest):
@@ -163,7 +165,7 @@ class NextflowConfigTest(ConfigTest):
         config_text = config_output.rsplit(self.SENTINEL, maxsplit=1)[-1]
 
         try:
-            return parse_config(config_text)
+            return parse_config(config_text, self.dated_fields)
         except Exception:
             print(config_output)
             raise
@@ -187,14 +189,6 @@ class NextflowConfigTest(ConfigTest):
             result.pop(key, None)
 
         differences = diff_json(self.expected_result, result)
-
-        # Filter out any differences resulting from dates
-        date_re = re.compile(r"\d{8}T\d{6}Z")
-        for index, (jsonpath, original, updated) in \
-                reversed(list(enumerate(differences))):
-            if re.sub(r"^\.+", "", jsonpath) in self.dated_fields:
-                if date_re.sub("", original) == date_re.sub("", updated):
-                    differences.pop(index)
 
         if differences:
             for key, original, updated in differences:
