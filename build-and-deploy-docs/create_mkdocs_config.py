@@ -7,10 +7,12 @@ for MKDocs to render.
 """
 import argparse
 import collections
+import contextlib
 import itertools
 import os
 import re
 import shutil
+import tempfile
 
 from urllib.parse import urlparse, urlunparse
 from dataclasses import dataclass, field
@@ -347,6 +349,22 @@ def build_mkdocs_config(pipeline_dir: Path,
             sort_keys=False)
 
     return output_config
+
+
+@contextlib.contextmanager
+def inherited_config(config_file: Path, overrides: dict) -> Path:
+    """
+    Create an inherited MkDocs configuration file to override specific values.
+    """
+    with tempfile.NamedTemporaryFile(mode="w",
+                                     dir=config_file.parent) as temp_config:
+        yaml.safe_dump(
+            {"INHERIT": config_file.name, **overrides},
+            temp_config,
+            explicit_start=True,
+            sort_keys=False)
+
+        yield Path(temp_config.name)
 
 
 if __name__ == '__main__':

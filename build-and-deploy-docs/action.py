@@ -293,23 +293,34 @@ def run_action(mkdocs_config, readme):
     )
 
     for (version, aliases, props) in get_versions_and_aliases():
-        mike_args = [
-            "mike",
-            "deploy",
-            "--config-file",
-            config_file,
-            "--prop-set-all",
-            json.dumps(props)
-        ]
+        # For any tag-like version, we want the edit_uri template of the
+        # rendered site to go to that tag, not just the commit. Use a
+        # hierarchical config file to make that happen.
+        overrides = {}
+        if TAG_REGEX.match(version):
+            base_url = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}"
+            overrides["repo_url"] = f'{base_url}/tree/{version}'
+            overrides["edit_uri"] = f'{base_url}/blob/{version}/README.md'
 
-        if aliases:
-            mike_args.extend(["--update-aliases", version])
-            mike_args.extend(list(aliases))
-        else:
-            mike_args.append(version)
+        with create_mkdocs_config.inherited_config(
+                config_file, overrides) as version_config:
+            mike_args = [
+                "mike",
+                "deploy",
+                "--config-file",
+                version_config,
+                "--prop-set-all",
+                json.dumps(props)
+            ]
 
-        # Build the docs as a commit on the gh-pages branch
-        subprocess.check_call(mike_args)
+            if aliases:
+                mike_args.extend(["--update-aliases", version])
+                mike_args.extend(list(aliases))
+            else:
+                mike_args.append(version)
+
+            # Build the docs as a commit on the gh-pages branch
+            subprocess.check_call(mike_args)
 
     # Redirect from the base site to the latest version. This will be a no-op
     # after the very first deployment, but it will not cause problems
