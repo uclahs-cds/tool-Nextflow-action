@@ -115,7 +115,11 @@ def setup_git():
         ])
 
     # https://github.com/jimporter/mike/tree/af47b9699aeeeea7f9ecea2631e1c9cfd92e06af#deploying-via-ci
-    subprocess.check_call(["git", "fetch", "origin", "gh-pages", "--depth=1"])
+    # This can fail if the branch doesn't exist yet, so tolerate problems
+    subprocess.run(
+        ["git", "fetch", "origin", "gh-pages", "--depth=1"],
+        check=False
+    )
 
     # Fetch all of the tags as well
     subprocess.check_call(["git", "fetch", "--tags"])
