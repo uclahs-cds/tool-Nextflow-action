@@ -15,6 +15,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Update output file name to explicitly specify `submodules`
 - Update documentation action to use tags and 'development' versions
 
+### Fixed
+- No longer fail on missing `gh-pages` branch
+- No longer fail on relative links to directories
+
 ---
 
 ## [1.0.0-rc.1] - 2022-08-22
