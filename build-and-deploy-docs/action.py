@@ -27,7 +27,7 @@ TAG_REGEX = re.compile(r"""
     (?:                     # Optional `git describe` addition
         -(?P<depth>\d+)     #   Commits since last tag
         -g(?P<hash>\w+)     #   Commit hash
-    )?
+    )?$
     """, re.VERBOSE)
 
 
