@@ -84,7 +84,7 @@ def is_release_candidate(version_str: str):
     return False
 
 
-def setup_git():
+def setup_git(do_remote_actions: bool):
     """
     Do various required git actions to prepare for generating documentation.
     """
@@ -114,15 +114,16 @@ def setup_git():
             f"{os.environ['GITHUB_ACTOR']}@users.noreply.github.com"
         ])
 
-    # https://github.com/jimporter/mike/tree/af47b9699aeeeea7f9ecea2631e1c9cfd92e06af#deploying-via-ci
-    # This can fail if the branch doesn't exist yet, so tolerate problems
-    subprocess.run(
-        ["git", "fetch", "origin", "gh-pages", "--depth=1"],
-        check=False
-    )
+    if do_remote_actions:
+        # https://github.com/jimporter/mike/tree/af47b9699aeeeea7f9ecea2631e1c9cfd92e06af#deploying-via-ci
+        # This can fail if the branch doesn't exist yet, so tolerate problems
+        subprocess.run(
+            ["git", "fetch", "origin", "gh-pages", "--depth=1"],
+            check=False
+        )
 
-    # Fetch all of the tags as well
-    subprocess.check_call(["git", "fetch", "--tags"])
+        # Fetch all of the tags as well
+        subprocess.check_call(["git", "fetch", "--tags"])
 
 
 def current_is_development(mike_versions: dict, head_props: dict) -> bool:
@@ -282,7 +283,11 @@ def get_versions_and_aliases():
 
 def run_action(mkdocs_config, readme):
     "Build and deploy the documentation."
-    setup_git()
+    # When backfilling tags, we want to avoid doing any explicit git
+    # operations. Use this environment variable to disable those.
+    do_remote_actions = not os.environ.get("BACKFILL_TAGS", False)
+
+    setup_git(do_remote_actions)
 
     # Build the mkdocs configuration
     config_file = create_mkdocs_config.build_mkdocs_config(
@@ -300,7 +305,8 @@ def run_action(mkdocs_config, readme):
         if TAG_REGEX.match(version):
             base_url = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}"
             overrides["repo_url"] = f'{base_url}/tree/{version}'
-            overrides["edit_uri"] = f'{base_url}/blob/{version}/README.md'
+            overrides["edit_uri_template"] = \
+                f'{base_url}/blob/{version}/README.md'
 
         with create_mkdocs_config.inherited_config(
                 config_file, overrides) as version_config:
@@ -329,7 +335,8 @@ def run_action(mkdocs_config, readme):
     )
 
     # Push up the changes to the docs
-    subprocess.check_call(["git", "push", "origin", "gh-pages"])
+    if do_remote_actions:
+        subprocess.check_call(["git", "push", "origin", "gh-pages"])
 
 
 if __name__ == "__main__":
