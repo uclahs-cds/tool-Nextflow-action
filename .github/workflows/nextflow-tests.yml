@@ -52,6 +52,7 @@ jobs:
         run: |
           docker run \
             --rm \
+            -e CI \
             -v ${{ github.workspace}}:${{ github.workspace }} \
             -w ${{ github.workspace }} \
             ghcr.io/uclahs-cds/nextflow-config-test:23.10.0 \
