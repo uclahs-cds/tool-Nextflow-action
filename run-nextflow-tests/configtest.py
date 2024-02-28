@@ -44,7 +44,7 @@ class ConfigTest:
 
         return cls(**data)
 
-    def check_results(self, pipeline_dir: Path, overwrite: bool) -> bool:
+    def check_results(self, pipeline_dir: Path, gh_annotations: bool) -> bool:
         "Run the test against the given pipeline directory."
         raise NotImplementedError()
 
@@ -170,7 +170,64 @@ class NextflowConfigTest(ConfigTest):
             print(config_output)
             raise
 
-    def check_results(self, pipeline_dir: Path, overwrite: bool) -> bool:
+    def print_diffs(self, otherfile: Path, gh_annotations: bool):
+        "Print the diff results to the console."
+        diff_process = subprocess.run(
+            ["diff", self.filepath, otherfile],
+            capture_output=True,
+            check=False
+        )
+        assert diff_process.returncode == 1
+        raw_diff = diff_process.stdout.decode("utf-8")
+
+        if not gh_annotations:
+            print(raw_diff)
+            return
+
+        # Diff lines look like:
+        # 176c176
+        # < "operand": "4",
+        # ---
+        # > "operand": "2",
+
+        # For multiline diffs the first line looks like:
+        # 572,574c572,574
+        context_re = re.compile(
+            r"^(\d+)(?:,(\d)+)?c(\d+)(?:,(\d+))?$\n((?:^[-<>].*$\n?)+)",
+            re.MULTILINE
+        )
+
+        context_re = re.compile(
+            r"""
+            ^(?P<from_start>\d+)        # First line of the left file
+            (?:,(?P<from_end>\d+))?     # Last line of the left file
+            c
+            (?P<to_start>\d+)           # First line of the right file
+            (?:,(?P<to_end>\d+))        # Last line of the right file
+            ?$\n
+            (?P<diff>(?:^[-<>].*$\n?)+) # Multiline diff text
+            """,
+            re.VERBOSE | re.MULTILINE
+        )
+
+        for match in context_re.finditer(raw_diff):
+            data = match.groupdict()
+
+            error_data = {
+                "file": str(self.filepath),
+                "line": data["from_start"],
+            }
+            if data["from_end"] is not None:
+                error_data["endLine"] = data["from_end"]
+
+            annotation = ",".join(
+                f"{key}={value}" for (key, value) in error_data.items()
+            )
+            diff = data['diff'].rstrip().replace('\n', '%0A')
+
+            print(f"::error {annotation}::{diff}")
+
+    def check_results(self, pipeline_dir: Path, gh_annotations: bool) -> bool:
         "Compare the results."
         result = self._run_test(pipeline_dir)
 
@@ -188,28 +245,16 @@ class NextflowConfigTest(ConfigTest):
         for key in boring_keys:
             result.pop(key, None)
 
-        differences = diff_json(self.expected_result, result)
+        if self.expected_result == result:
+            return True
 
-        if differences:
-            for key, original, updated in differences:
-                print(key)
-                print(original)
-                print(updated)
-                print("------")
-
-            if self.filepath:
-                if not overwrite:
-                    outpath = self.filepath.with_name(
-                        self.filepath.stem + "-out.json")
-                else:
-                    outpath = self.filepath
-
-                print("Saving updated file to", outpath)
-                dataclasses.replace(
-                    self,
-                    expected_result=result
-                ).to_file(outpath)
-
+        if not self.filepath:
             return False
 
-        return True
+        outpath = self.filepath.with_name(self.filepath.stem + "-out.json")
+        print("Saving updated file to", outpath)
+        dataclasses.replace(self, expected_result=result).to_file(outpath)
+
+        self.print_diffs(outpath, gh_annotations)
+
+        return False
