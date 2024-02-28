@@ -15,6 +15,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v[0-9]*'
 
 jobs:
   build:
