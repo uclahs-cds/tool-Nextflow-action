@@ -185,7 +185,8 @@ def split_readme(readme_file: Path,
                     )
 
                 # If the link is to an image, copy that image to the docs
-                elif magic.from_file(resolved_path, mime=True) \
+                elif resolved_path.is_file() and \
+                        magic.from_file(resolved_path, mime=True) \
                         in VALID_IMAGE_MIME_TYPES:
                     output_path = Path(img_dir, resolved_path.name)
                     shutil.copy2(resolved_path, output_path)
