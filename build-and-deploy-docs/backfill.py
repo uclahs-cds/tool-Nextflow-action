@@ -2,7 +2,6 @@
 "Backfill documentation for existing tags."
 import argparse
 import contextlib
-import functools
 import getpass
 import re
 import subprocess
@@ -15,11 +14,11 @@ from action import TAG_REGEX, strings_low_key
 
 def checkrun(*args, context, **kwargs):
     "A wrapper around subprocess.run to handle common errors."
-    kwargs["check"] = True
-    kwargs["capture_output"] = True
+    kwargs.pop("check", None)
+    kwargs.pop("capture_output", None)
 
     try:
-        return subprocess.run(*args, **kwargs)
+        return subprocess.run(*args, **kwargs, check=True, capture_output=True)
     except subprocess.CalledProcessError as err:
         print(f"Error while {context}")
         print("cmd:", err.cmd)
@@ -166,9 +165,14 @@ def backfill_tag_docs(pipeline_url: str):
                     server.kill()
 
 
-if __name__ == "__main__":
+def main():
+    "The main entrypoint."
     parser = argparse.ArgumentParser()
     parser.add_argument("repo_url")
     args = parser.parse_args()
 
     backfill_tag_docs(args.repo_url)
+
+
+if __name__ == "__main__":
+    main()
