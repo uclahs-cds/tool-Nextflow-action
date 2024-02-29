@@ -10,15 +10,23 @@ import tempfile
 import textwrap
 
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, ClassVar, TypeVar, Type
 
 from utils import parse_config
+
+
+T = TypeVar('T', bound='ConfigTest')
 
 
 @dataclasses.dataclass
 class ConfigTest:
     "A class representing a single Nextflow configuration test."
     # pylint: disable=too-many-instance-attributes
+    SENTINEL: ClassVar = "=========SENTINEL_OUTPUT=========="
+
+    pipeline: Path = dataclasses.field(init=False, compare=False)
+    filepath: Path = dataclasses.field(init=False, compare=False)
+
     config: List[str]
     params_file: str
     cpus: int
@@ -33,7 +41,7 @@ class ConfigTest:
     expected_result: Dict
 
     @classmethod
-    def from_file(cls, filepath: Path):
+    def from_file(cls: Type[T], pipeline: Path, filepath: Path) -> T:
         "Load a ConfigTest from a file."
         with filepath.open(mode="rb") as infile:
             data = json.load(infile)
@@ -42,17 +50,37 @@ class ConfigTest:
         data.pop("empty_files", None)
         data.pop("mapped_files", None)
 
-        return cls(**data)
+        result = cls(**data)
+        result.pipeline = pipeline
+        result.filepath = filepath
+        return result
 
-    def check_results(self, pipeline_dir: Path, gh_annotations: bool) -> bool:
-        "Run the test against the given pipeline directory."
+    def replace_results(self, updated_results):
+        "Return another test object with updated results and filepath."
+        regenerated_test = dataclasses.replace(
+            self,
+            expected_result=updated_results
+        )
+
+        # These fields are not automatically copied, as they were set with
+        # init=False
+        regenerated_test.pipeline = self.pipeline
+        regenerated_test.filepath = self.filepath
+
+        return regenerated_test
+
+    def recompute_results(self) -> T:
+        "Run the test and return the results as another object."
         raise NotImplementedError()
 
-    def to_file(self, filepath):
+    def to_file(self):
         "Serialize a ConfigTest to a file."
-        with filepath.open(mode="w") as outfile:
+        data = dataclasses.asdict(self)
+        data.pop("pipeline")
+
+        with data.pop("filepath").open(mode="w") as outfile:
             json.dump(
-                dataclasses.asdict(self),
+                data,
                 outfile,
                 indent=2,
                 sort_keys=False
@@ -63,20 +91,8 @@ class ConfigTest:
 
 class NextflowConfigTest(ConfigTest):
     "A subclass."
-    SENTINEL = "=========SENTINEL_OUTPUT=========="
 
-    @classmethod
-    def from_file(cls, filepath: Path):
-        "Load a ConfigTest from a file."
-        result = super().from_file(filepath)
-        result.filepath = filepath
-        return result
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.filepath = None
-
-    def _run_test(self, pipeline_dir: Path):
+    def _run_test(self):
         "Get the resolved config of this pipepline."
         # pylint: disable=too-many-locals
         # Make a temporary directory on the host to hold all of the
@@ -108,7 +124,7 @@ class NextflowConfigTest(ConfigTest):
 
                 for configfile in self.config:
                     outfile.write(
-                        f'    includeConfig "{pipeline_dir / configfile}"\n'
+                        f'    includeConfig "{self.pipeline / configfile}"\n'
                     )
 
                 # The config files can print arbitrary text to stdout; include
@@ -134,7 +150,7 @@ class NextflowConfigTest(ConfigTest):
             envvars = {
                 **os.environ,
                 **self.envvars,
-                "BL_PIPELINE_DIR": str(pipeline_dir),
+                "BL_PIPELINE_DIR": str(self.pipeline),
                 "BL_CONFIG_FILE": str(config_file),
                 "BL_MOCKS_FILE": str(mocks_file),
                 "BL_CLI_PARAMS_FILE": str(cli_params_file),
@@ -142,7 +158,7 @@ class NextflowConfigTest(ConfigTest):
 
             if self.params_file:
                 envvars["BL_PARAMS_FILE"] = \
-                    str(pipeline_dir / self.params_file)
+                    str(self.pipeline / self.params_file)
 
             try:
                 # Run the test and capture the output
@@ -170,17 +186,17 @@ class NextflowConfigTest(ConfigTest):
             print(config_output)
             raise
 
-    def print_diffs(self, otherfile: Path, gh_annotations: bool):
+    def print_diffs(self, other: Type[T]):
         "Print the diff results to the console."
         diff_process = subprocess.run(
-            ["diff", self.filepath, otherfile],
+            ["diff", self.filepath, other.filepath],
             capture_output=True,
             check=False
         )
-        assert diff_process.returncode == 1
         raw_diff = diff_process.stdout.decode("utf-8")
 
-        if not gh_annotations:
+        if "CI" not in os.environ:
+            # We're running from the console - print the raw diff
             print(raw_diff)
             return
 
@@ -227,9 +243,28 @@ class NextflowConfigTest(ConfigTest):
 
             print(f"::error {annotation}::{diff}")
 
-    def check_results(self, pipeline_dir: Path, gh_annotations: bool) -> bool:
+    def mark_for_archive(self):
+        "Emit GitHub workflow commands to archive this file."
+        if "GITHUB_OUTPUT" not in os.environ:
+            # Nothing to be done here
+            return
+
+        # Emit details required to archive changed file
+        bad_characters = re.compile(r'[":<>|*?\r\n\\/]')
+
+        with Path(os.environ["GITHUB_OUTPUT"]).open(
+                mode="w", encoding="utf-8") as outfile:
+            # Each archive file needs a unique key
+            key = bad_characters.sub(
+                "_",
+                str(self.filepath.relative_to(self.pipeline))
+            )
+            outfile.write(f"archive_key={key}\n")
+            outfile.write(f"archive_path={self.filepath}\n")
+
+    def recompute_results(self) -> T:
         "Compare the results."
-        result = self._run_test(pipeline_dir)
+        result = self._run_test()
 
         # These are namespaces defined in the common submodules
         boring_keys = {
@@ -245,16 +280,11 @@ class NextflowConfigTest(ConfigTest):
         for key in boring_keys:
             result.pop(key, None)
 
-        if self.expected_result == result:
-            return True
+        regenerated_test = self.replace_results(result)
+        # Update the filepath so as not to overwrite
+        regenerated_test.filepath = self.filepath.with_name(
+            self.filepath.stem + "-out.json"
+        )
+        regenerated_test.to_file()
 
-        if not self.filepath:
-            return False
-
-        outpath = self.filepath.with_name(self.filepath.stem + "-out.json")
-        print("Saving updated file to", outpath)
-        dataclasses.replace(self, expected_result=result).to_file(outpath)
-
-        self.print_diffs(outpath, gh_annotations)
-
-        return False
+        return regenerated_test
