@@ -239,6 +239,7 @@ class NextflowConfigTest:
         "Emit GitHub workflow commands to archive this file."
         if "GITHUB_OUTPUT" not in os.environ:
             # Nothing to be done here
+            print("Unable to mark for archive")
             return
 
         # Emit details required to archive changed file
