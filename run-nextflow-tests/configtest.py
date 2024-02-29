@@ -245,8 +245,9 @@ class NextflowConfigTest:
         # Emit details required to archive changed file
         bad_characters = re.compile(r'[":<>|*?\r\n\\/]')
 
-        with Path(os.environ["GITHUB_OUTPUT"]).open(
-                mode="w", encoding="utf-8") as outfile:
+        output_file = Path(os.environ["GITHUB_OUTPUT"])
+
+        with output_file.open(mode="w", encoding="utf-8") as outfile:
             # Each archive file needs a unique key
             key = bad_characters.sub(
                 "_",
@@ -254,6 +255,8 @@ class NextflowConfigTest:
             )
             outfile.write(f"archive_key={key}\n")
             outfile.write(f"archive_path={self.filepath}\n")
+
+        print("Wrote", output_file.read_text(encoding="utf-8"))
 
     def recompute_results(self) -> T:
         "Compare the results."
