@@ -24,8 +24,6 @@ class ConfigTest:
     cpus: int
     memory_gb: float
 
-    empty_files: List[str]
-    mapped_files: Dict[str, str]
     nf_params: Dict[str, str]
     envvars: Dict[str, str]
     mocks: Dict
@@ -39,6 +37,10 @@ class ConfigTest:
         "Load a ConfigTest from a file."
         with filepath.open(mode="rb") as infile:
             data = json.load(infile)
+
+        # Remove these deprecated fields
+        data.pop("empty_files", None)
+        data.pop("mapped_files", None)
 
         return cls(**data)
 
