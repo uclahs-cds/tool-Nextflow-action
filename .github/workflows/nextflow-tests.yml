@@ -51,7 +51,6 @@ jobs:
 
       - id: dockertest
         run: |
-          echo "The output path is $GITHUB_OUTPUT"
           docker run \
             --rm \
             -e CI \
