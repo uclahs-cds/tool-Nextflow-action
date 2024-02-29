@@ -12,15 +12,11 @@ def run_pipeline_test(pipeline: Path, test_case: Path) -> bool:
     testobj = NextflowConfigTest.from_file(pipeline, test_case)
     updated_testobj = testobj.recompute_results()
 
-    if testobj == updated_testobj:
-        print("No changes!")
-        return True
-
-    # Print the differences
+    # Print any differences
     testobj.print_diffs(updated_testobj)
     updated_testobj.mark_for_archive()
 
-    return False
+    return testobj == updated_testobj
 
 
 if __name__ == "__main__":

@@ -185,6 +185,11 @@ class NextflowConfigTest:
             capture_output=True,
             check=False
         )
+        if diff_process.returncode == 0:
+            # No diff!
+            print("No changes!")
+            return
+
         raw_diff = diff_process.stdout.decode("utf-8")
 
         if "CI" not in os.environ:
