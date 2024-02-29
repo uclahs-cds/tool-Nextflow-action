@@ -15,11 +15,11 @@ from typing import List, Dict, ClassVar, TypeVar, Type
 from utils import parse_config
 
 
-T = TypeVar('T', bound='ConfigTest')
+T = TypeVar('T', bound='NextflowConfigTest')
 
 
 @dataclasses.dataclass
-class ConfigTest:
+class NextflowConfigTest:
     "A class representing a single Nextflow configuration test."
     # pylint: disable=too-many-instance-attributes
     SENTINEL: ClassVar = "=========SENTINEL_OUTPUT=========="
@@ -69,10 +69,6 @@ class ConfigTest:
 
         return regenerated_test
 
-    def recompute_results(self) -> T:
-        "Run the test and return the results as another object."
-        raise NotImplementedError()
-
     def to_file(self):
         "Serialize a ConfigTest to a file."
         data = dataclasses.asdict(self)
@@ -87,10 +83,6 @@ class ConfigTest:
             )
             # Add a trailing newline to the file
             outfile.write("\n")
-
-
-class NextflowConfigTest(ConfigTest):
-    "A subclass."
 
     def _run_test(self):
         "Get the resolved config of this pipepline."
