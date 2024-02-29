@@ -93,7 +93,7 @@ Any differences with the expected results are displayed as annotations in the pu
 
 Each `run-test` check saves a new and valid test file as an artifact. This makes it easy to update failing tests - you can simply overwrite the failing test with the artifact and commit the changes (after verifying that they are expected).
 
-[!Artifact files](docs/artifacts.png)
+![Artifact files](docs/artifacts.png)
 
 ### Output Modifications
 
