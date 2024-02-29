@@ -246,6 +246,7 @@ class NextflowConfigTest:
         bad_characters = re.compile(r'[":<>|*?\r\n\\/]')
 
         output_file = Path(os.environ["GITHUB_OUTPUT"])
+        print("The output file is", output_file)
 
         with output_file.open(mode="w", encoding="utf-8") as outfile:
             # Each archive file needs a unique key
