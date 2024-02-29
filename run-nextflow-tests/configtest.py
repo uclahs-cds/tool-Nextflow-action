@@ -2,7 +2,6 @@
 The class representation of a Nextflow configuration test.
 """
 import dataclasses
-import itertools
 import json
 import os
 import re
@@ -10,11 +9,10 @@ import subprocess
 import tempfile
 import textwrap
 
-from contextlib import ExitStack
 from pathlib import Path
 from typing import List, Dict
 
-from utils import parse_config, diff_json
+from utils import parse_config
 
 
 @dataclasses.dataclass
@@ -141,11 +139,11 @@ class NextflowConfigTest(ConfigTest):
             }
 
             if self.params_file:
-                envvars["BL_PARAMS_FILE"] = str(pipeline_dir / self.params_file)
+                envvars["BL_PARAMS_FILE"] = \
+                    str(pipeline_dir / self.params_file)
 
             try:
-                # Launch the docker container in the background and immediately
-                # capture the container ID (so that we can clean up afterwards)
+                # Run the test and capture the output
                 config_output = subprocess.run(
                     [
                         "/usr/local/bin/nextflow-config-test",
@@ -193,11 +191,6 @@ class NextflowConfigTest(ConfigTest):
         # For multiline diffs the first line looks like:
         # 572,574c572,574
         context_re = re.compile(
-            r"^(\d+)(?:,(\d)+)?c(\d+)(?:,(\d+))?$\n((?:^[-<>].*$\n?)+)",
-            re.MULTILINE
-        )
-
-        context_re = re.compile(
             r"""
             ^(?P<from_start>\d+)        # First line of the left file
             (?:,(?P<from_end>\d+))?     # Last line of the left file
@@ -210,6 +203,8 @@ class NextflowConfigTest(ConfigTest):
             re.VERBOSE | re.MULTILINE
         )
 
+        # Produce annotations in the GitHub UI
+        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
         for match in context_re.finditer(raw_diff):
             data = match.groupdict()
 
@@ -223,6 +218,9 @@ class NextflowConfigTest(ConfigTest):
             annotation = ",".join(
                 f"{key}={value}" for (key, value) in error_data.items()
             )
+
+            # %0A is a url-encoded linefeed - doing this enables multi-line
+            # annotations
             diff = data['diff'].rstrip().replace('\n', '%0A')
 
             print(f"::error {annotation}::{diff}")
