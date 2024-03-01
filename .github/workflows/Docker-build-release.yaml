@@ -2,7 +2,6 @@
 # Only rebuild when changes to the run-nextflow-tests/ folder are pushed to
 # main
 on:
-  workflow-dispatch:
   push:
     branches:
       - main
