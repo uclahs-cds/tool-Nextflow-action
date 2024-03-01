@@ -10,6 +10,7 @@ on:
       - nwiltsie-nextflow-regression-action
     paths:
       - 'run-nextflow-tests/*'
+      - '.github/workflows/docker-build-release.yaml'
 
 jobs:
   build-and-push-image:
