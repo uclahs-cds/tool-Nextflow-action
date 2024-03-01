@@ -3,8 +3,8 @@ Utility methods.
 """
 import collections.abc
 import itertools
-import re
 import json
+import re
 from typing import List, Any
 
 
