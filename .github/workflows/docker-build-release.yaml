@@ -32,7 +32,7 @@ jobs:
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
 
       - id: build-push
-        uses: uclahs-cds/tool-Docker-action/build-release@nwiltsie-enable-subfolders
+        uses: uclahs-cds/tool-Docker-action/build-release@main
         with:
           metadata-file: run-nextflow-tests/docker-metadata.yaml
           context: run-nextflow-tests
