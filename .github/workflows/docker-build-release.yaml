@@ -27,6 +27,10 @@ jobs:
           file: run-nextflow-tests/docker-metadata.yaml
           key-path: '["nextflow_version"]'
 
+      - name: Get date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - id: build-push
         uses: uclahs-cds/tool-Docker-action/build-release@nwiltsie-enable-subfolders
         with:
@@ -35,4 +39,4 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           custom-tags: |
             type=raw,enable=${{github.event_name == 'push'}},value=${{steps.getversion.outputs.data}}
-            type=raw,enable=${{github.event_name == 'push'}},value=${{steps.getversion.outputs.data}}-${{github.run_number}}
+            type=raw,enable=${{github.event_name == 'push'}},value=${{steps.getversion.outputs.data}}-${{steps.date.outputs.date}}
