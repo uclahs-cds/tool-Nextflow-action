@@ -55,7 +55,7 @@ class NextflowConfigTest:
         result.filepath = filepath.resolve()
         return result
 
-    def replace_results(self, updated_results):
+    def replace_results(self: T, updated_results) -> T:
         "Return another test object with updated results and filepath."
         regenerated_test = dataclasses.replace(
             self,
@@ -178,7 +178,7 @@ class NextflowConfigTest:
             print(config_output)
             raise
 
-    def print_diffs(self, other: Type[T]):
+    def print_diffs(self, other: T):
         "Print the diff results to the console."
         diff_process = subprocess.run(
             ["diff", self.filepath, other.filepath],
@@ -260,7 +260,7 @@ class NextflowConfigTest:
             outfile.write(f"archive_key={key}\n")
             outfile.write(f"archive_path={self.filepath}\n")
 
-    def recompute_results(self) -> T:
+    def recompute_results(self: T) -> T:
         "Compare the results."
         result = self._run_test()
 
