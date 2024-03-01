@@ -1,5 +1,5 @@
 ---
-name: Build tester image
+name: Build image
 
 # Only rebuild when changes to the run-nextflow-tests/ folder are pushed to
 # main
@@ -33,4 +33,6 @@ jobs:
           metadata-file: run-nextflow-tests/docker-metadata.yaml
           context: run-nextflow-tests
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          custom-tags: type=raw,enable=${{github.event_name == 'push'}},value=${{steps.getversion.outputs.data}}-${{github.run_number}}
+          custom-tags: |
+            type=raw,enable=${{github.event_name == 'push'}},value=${{steps.getversion.outputs.data}}
+            type=raw,enable=${{github.event_name == 'push'}},value=${{steps.getversion.outputs.data}}-${{github.run_number}}
