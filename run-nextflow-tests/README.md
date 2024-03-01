@@ -8,6 +8,7 @@ Configuration tests are self-contained JSON files named `configtest*.json` with 
 
 | Key | Description |
 | --- | --- |
+| nextflow_version | The version of Nextflow to be used for the tests (e.g. `23.10.0`) |
 | config | A list of configuration files to be included (`nextflow -c <file1> -c <file2>`) |
 | params_file | A single parameter file or an empty string (`nextflow -params-file <file>`) |
 | cpus | The integer CPU count to be returned by `SysHelper::getAvailCpus()` |

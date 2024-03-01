@@ -27,6 +27,8 @@ class NextflowConfigTest:
     pipeline: Path = dataclasses.field(init=False, compare=False)
     filepath: Path = dataclasses.field(init=False, compare=False)
 
+    nextflow_version: str
+
     config: List[str]
     params_file: str
     cpus: int
