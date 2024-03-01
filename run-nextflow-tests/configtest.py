@@ -211,7 +211,7 @@ class NextflowConfigTest:
             r"""
             ^(?P<from_start>\d+)        # First line of the left file
             (?:,(?P<from_end>\d+))?     # Last line of the left file
-            c
+            [acd]                       # Add, change, or delete
             (?P<to_start>\d+)           # First line of the right file
             (?:,(?P<to_end>\d+))        # Last line of the right file
             ?$\n
