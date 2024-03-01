@@ -8,10 +8,10 @@ import re
 from typing import List, Any
 
 
-ESCAPE_RE = re.compile(r"([^\\])\\([ =:])")
 CLOSURE_RE = re.compile(r"^Script\S+_run_closure")
-POINTER_RE = re.compile(r"^(\[?Ljava\..*;@)(\w+)$")
 DATE_RE = re.compile(r"\d{8}T\d{6}Z")
+ESCAPE_RE = re.compile(r"([^\\])\\([ =:])")
+POINTER_RE = re.compile(r"^(\[?Ljava\..*;@)(\w+)$")
 
 
 def diff_json(alpha, beta):
