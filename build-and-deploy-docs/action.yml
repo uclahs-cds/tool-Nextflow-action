@@ -14,7 +14,7 @@ inputs:
 runs:
   using: 'docker'
   image: 'Dockerfile'
-  entrypoint: '/src/action.sh'
+  entrypoint: '/src/action.py'
   args:
     - ${{ inputs.mkdocs_config }}
     - ${{ inputs.readme }}

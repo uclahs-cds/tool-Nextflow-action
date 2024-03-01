@@ -10,9 +10,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 ### Added
 - Action to build and deploy documentation on GitHub Pages
+- `backfill.py` script to generate documentation for existing tags
 
 ### Changed
 - Update output file name to explicitly specify `submodules`
+- Update documentation action to use tags and 'development' versions
+- Improved GitHub links in documentation links for tagged versions
+
+### Fixed
+- No longer fail on missing `gh-pages` branch
+- No longer fail on relative links to directories
 
 ---
 
