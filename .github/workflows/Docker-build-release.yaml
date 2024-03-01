@@ -19,12 +19,13 @@ jobs:
       contents: read
       packages: write
     steps:
+      - uses: actions/checkout@v4
+
       - id: getversion
         uses: jbutcher5/read-yaml@1.6
         with:
           file: run-nextflow-tests/docker-metadata.yaml
           key-path: '["nextflow_version"]'
-
 
       - id: build-push
         uses: uclahs-cds/tool-Docker-action/build-release@nwiltsie-enable-subfolders

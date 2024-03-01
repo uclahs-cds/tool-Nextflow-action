@@ -68,7 +68,7 @@ def diff_json(alpha, beta):
 
 def parse_value(value_str: str):
     "Parse a value."
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-branches,too-many-return-statements
     try:
         if CLOSURE_RE.match(value_str):
             return "closure()"

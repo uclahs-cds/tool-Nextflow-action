@@ -35,6 +35,6 @@ COPY betterconfig.groovy /usr/local/bltests/
 COPY entry.py configtest.py utils.py /usr/local/bltests/
 WORKDIR /mnt/pipeline
 
-LABEL org.opencontainers.image.source https://github.com/uclahs-cds/tool-Nextflow-action
+LABEL org.opencontainers.image.source=https://github.com/uclahs-cds/tool-Nextflow-action
 
 ENTRYPOINT ["/usr/local/bltests/entry.py"]
