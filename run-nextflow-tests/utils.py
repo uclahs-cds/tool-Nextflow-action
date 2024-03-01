@@ -133,7 +133,7 @@ def parse_value(value_str: str) -> Any:
 
     # Mask any memory addresses
     if POINTER_RE.match(value_str):
-        value_str = POINTER_RE.sub(r"\1dec0ded", value_str)
+        value = POINTER_RE.sub(r"\1dec0ded", value_str)
 
     elif value_str and value_str[0] == "[" and value_str[-1] == "]":
         value = _parse_list_value(value_str)
