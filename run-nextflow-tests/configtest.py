@@ -222,6 +222,16 @@ class NextflowConfigTest:
 
         # Produce annotations in the GitHub UI
         # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
+
+        # The __equals__ method ignores some keys and is blind to any JSON
+        # formatting differences. If the two objects are __equal__ (meaning the
+        # test will pass) but have text differences, mark those differences as
+        # warnings. Otherwise mark them as errors.
+        if self == other:
+            level = "warning"
+        else:
+            level = "error"
+
         for match in context_re.finditer(raw_diff):
             data = match.groupdict()
 
@@ -240,7 +250,7 @@ class NextflowConfigTest:
             # annotations
             diff = data['diff'].rstrip().replace('\n', '%0A')
 
-            print(f"::error {annotation}::{diff}")
+            print(f"::{level} {annotation}::{diff}")
 
     def mark_for_archive(self):
         "Emit GitHub workflow commands to archive this file."
