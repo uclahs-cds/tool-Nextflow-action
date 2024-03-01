@@ -6,6 +6,7 @@ name: Build tester image
 on:
   push:
     branches:
+      - main
       - nwiltsie-nextflow-regression-action
     paths:
       - 'run-nextflow-tests/*'
