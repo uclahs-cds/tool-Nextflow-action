@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"Quick entrypoint for this tool."
+"Dockerfile entrypoint script."
 import argparse
 import sys
 from pathlib import Path
@@ -8,7 +8,7 @@ from configtest import NextflowConfigTest
 
 
 def run_pipeline_test(pipeline: Path, test_case: Path) -> bool:
-    "Run the bundled pipeline-recalibrate-BAM test."
+    "Run a pipeline test and save the results to a new file."
     testobj = NextflowConfigTest.from_file(pipeline, test_case)
     updated_testobj = testobj.recompute_results()
 
