@@ -59,8 +59,11 @@ class NextflowConfigTest:
 
     def replace_results(self: T, updated_results) -> T:
         "Return another test object with updated results and filepath."
+        nf_version = updated_results.pop("betterconfig_nextflow_version")
+
         regenerated_test = dataclasses.replace(
             self,
+            nextflow_version=nf_version,
             expected_result=updated_results
         )
 
