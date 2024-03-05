@@ -2,34 +2,16 @@
 Utility methods.
 """
 import collections.abc
-import subprocess
 import itertools
-import re
 import json
+import re
+from typing import List, Any
 
-from pathlib import Path
 
-
-ESCAPE_RE = re.compile(r"([^\\])\\([ =:])")
 CLOSURE_RE = re.compile(r"^Script\S+_run_closure")
-
-
-def build_image() -> str:
-    "Build the image and return the name."
-    image = "configtester"
-    context_dir = Path(__file__).resolve().parent
-    try:
-        subprocess.run(
-            ["docker", "build", context_dir, "-t", image],
-            capture_output=True,
-            check=True
-        )
-    except subprocess.CalledProcessError as err:
-        print(err.stdout.decode("utf-8"))
-        print(err.stderr.decode("utf-8"))
-        raise
-
-    return image
+DATE_RE = re.compile(r"\d{8}T\d{6}Z")
+ESCAPE_RE = re.compile(r"([^\\])\\([ =:])")
+POINTER_RE = re.compile(r"^(\[?Ljava\..*;@)(\w+)$")
 
 
 def diff_json(alpha, beta):
@@ -84,9 +66,62 @@ def diff_json(alpha, beta):
     return results
 
 
-def parse_value(value_str: str):
+def _parse_list_value(value_str: str) -> List[Any]:
+    "Parse a list-like value."
+    value = []
+    stack = []
+
+    assert value_str[0] == "["
+    assert value_str[-1] == "]"
+
+    list_str = value_str[1:-1]
+
+    index = 0
+    first_index = 0
+    for index, character in enumerate(list_str):
+        if character == "{":
+            stack.append("}")
+        elif character == "(":
+            stack.append(")")
+        elif character in ("}", ")"):
+            assert stack[-1] == character
+            stack.pop()
+
+        elif character == "," and not stack:
+            # Do not include the comma
+            value.append(parse_value(list_str[first_index:index]))
+            first_index = index + 1
+
+    assert not stack
+
+    if index > first_index:
+        value.append(parse_value(list_str[first_index:]))
+
+    return value
+
+
+def _parse_dict_value(value_str: str) -> dict:
+    "Parse a dictionary-like value."
+    value = {}
+
+    assert value_str[0] == "{"
+    assert value_str[-1] == "}"
+
+    for token in value_str[1:-1].split(", "):
+        try:
+            token_key, token_value = token.split("\\=", maxsplit=1)
+        except ValueError:
+            print(f"The bad value is `{value_str}`")
+            print(f"The specific token is `{token}`")
+            raise
+
+        value[parse_value(token_key)] = parse_value(token_value)
+
+    return value
+
+
+def parse_value(value_str: str) -> Any:
     "Parse a value."
-    # pylint: disable=too-many-branches
     try:
         if CLOSURE_RE.match(value_str):
             return "closure()"
@@ -94,59 +129,31 @@ def parse_value(value_str: str):
         print(value_str)
         raise
 
-    if value_str and value_str[0] == "[" and value_str[-1] == "]":
-        value = []
-        stack = []
+    value: Any = None
 
-        list_str = value_str[1:-1]
+    # Mask any memory addresses
+    if POINTER_RE.match(value_str):
+        value = POINTER_RE.sub(r"\1dec0ded", value_str)
 
-        index = 0
-        first_index = 0
-        for index, character in enumerate(list_str):
-            if character == "{":
-                stack.append("}")
-            elif character == "(":
-                stack.append(")")
-            elif character in ("}", ")"):
-                assert stack[-1] == character
-                stack.pop()
+    elif value_str and value_str[0] == "[" and value_str[-1] == "]":
+        value = _parse_list_value(value_str)
 
-            elif character == "," and not stack:
-                # Do not include the comma
-                value.append(parse_value(list_str[first_index:index]))
-                first_index = index + 1
+    elif value_str and value_str[0] == "{" and value_str[-1] == "}":
+        value = _parse_dict_value(value_str)
 
-        assert not stack
+    elif value_str == "true":
+        value = True
 
-        if index > first_index:
-            value.append(parse_value(list_str[first_index:]))
+    elif value_str == "false":
+        value = False
 
-        return value
+    else:
+        value = ESCAPE_RE.sub(r"\1\2", value_str.strip())
 
-    if value_str and value_str[0] == "{" and value_str[-1] == "}":
-        value = {}
-        for token in value_str[1:-1].split(", "):
-            try:
-                token_key, token_value = token.split("\\=", maxsplit=1)
-            except ValueError:
-                print(f"The bad value is `{value_str}`")
-                print(f"The specific token is `{token}`")
-                raise
-
-            value[parse_value(token_key)] = parse_value(token_value)
-
-        return value
-
-    if value_str == "true":
-        return True
-
-    if value_str == "false":
-        return False
-
-    return ESCAPE_RE.sub(r"\1\2", value_str.strip())
+    return value
 
 
-def parse_config(config_str: str) -> dict:
+def parse_config(config_str: str, dated_fields: List[str]) -> dict:
     "Parse a string of Java properties."
     param_re = re.compile(r"^(?P<key>\S+?[^\\])=(?P<value>.*)$")
 
@@ -163,20 +170,25 @@ def parse_config(config_str: str) -> dict:
 
             assign_value(closure[local_key], remainder, value)
 
-    config = {}
+    config: dict[str, Any] = {}
 
     for line in config_str.splitlines():
         line = line.strip()
         if not line:
             continue
 
-        try:
-            key, value = param_re.match(line).groups()
-        except AttributeError:
-            print(f"The offending line is `{line}`")
-            raise
+        param_match = param_re.match(line)
+        if not param_match:
+            raise ValueError(f"The offending line is `{line}`")
 
-        assign_value(config, ESCAPE_RE.sub(r"\1\2", key), value)
+        key, value = param_match.groups()
+
+        escaped_key = ESCAPE_RE.sub(r"\1\2", key)
+        if escaped_key in dated_fields:
+            # Replace the date with Pathfinder's landing
+            value = DATE_RE.sub("19970704T165655Z", value)
+
+        assign_value(config, escaped_key, value)
 
     # Specifically sort the config
     return json.loads(json.dumps(config, sort_keys=True))

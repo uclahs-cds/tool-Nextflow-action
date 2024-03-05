@@ -5,6 +5,7 @@ import groovy.lang.Closure
 import groovy.lang.ProxyMetaClass
 import groovy.util.ConfigObject
 
+import nextflow.Const
 import nextflow.cli.CliOptions
 import nextflow.cli.CmdRun
 import nextflow.config.ConfigBuilder
@@ -209,6 +210,8 @@ void print_configuration() {
     proxy.use {
         walk(interceptor, "process", config.process)
     }
+
+    System.out.println("betterconfig_nextflow_version=${Const.APP_VER}")
 
     System.out << ConfigHelper.toPropertiesString(config, false)
 }

@@ -1,0 +1,43 @@
+---
+name: Build image
+
+# Only rebuild when changes to the run-nextflow-tests/ folder are pushed to
+# main
+on:
+  push:
+    branches:
+      - main
+      - nwiltsie-nextflow-regression-action
+    paths:
+      - 'run-nextflow-tests/*'
+      - '.github/workflows/docker-build-release.yaml'
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    name: Build and push image
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: getversion
+        uses: jbutcher5/read-yaml@1.6
+        with:
+          file: run-nextflow-tests/docker-metadata.yaml
+          key-path: '["nextflow_version"]'
+
+      - name: Get date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - id: build-push
+        uses: uclahs-cds/tool-Docker-action/build-release@main
+        with:
+          metadata-file: run-nextflow-tests/docker-metadata.yaml
+          context: run-nextflow-tests
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          custom-tags: |
+            type=raw,enable=${{github.event_name == 'push'}},value=${{steps.getversion.outputs.data}}
+            type=raw,enable=${{github.event_name == 'push'}},value=${{steps.getversion.outputs.data}}-${{steps.date.outputs.date}}

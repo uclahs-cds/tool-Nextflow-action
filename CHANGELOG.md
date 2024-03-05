@@ -11,6 +11,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 - Action to build and deploy documentation on GitHub Pages
 - `backfill.py` script to generate documentation for existing tags
+- Add reusable workflow to run Nextflow regression tests
+- Add new `nextflow-config-tests` Docker image linked to this repository
 
 ### Changed
 - Update output file name to explicitly specify `submodules`

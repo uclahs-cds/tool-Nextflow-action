@@ -2,85 +2,99 @@
 The class representation of a Nextflow configuration test.
 """
 import dataclasses
-import itertools
 import json
+import os
 import re
 import subprocess
 import tempfile
 import textwrap
 
-from contextlib import ExitStack
 from pathlib import Path
+from typing import List, Dict, ClassVar, TypeVar, Type
 
-from utils import build_image, parse_config, diff_json
+from utils import parse_config
+
+
+T = TypeVar('T', bound='NextflowConfigTest')
 
 
 @dataclasses.dataclass
-class ConfigTest:
+class NextflowConfigTest:
     "A class representing a single Nextflow configuration test."
     # pylint: disable=too-many-instance-attributes
-    config: list[str]
+    SENTINEL: ClassVar = "=========SENTINEL_OUTPUT=========="
+
+    pipeline: Path = dataclasses.field(init=False, compare=False)
+    filepath: Path = dataclasses.field(init=False, compare=False)
+
+    nextflow_version: str
+
+    config: List[str]
     params_file: str
     cpus: int
     memory_gb: float
 
-    empty_files: list[str]
-    mapped_files: dict[str, str]
-    nf_params: dict[str, str]
-    envvars: dict[str, str]
-    mocks: dict
+    nf_params: Dict[str, str]
+    envvars: Dict[str, str]
+    mocks: Dict
 
-    dated_fields: list[str]
+    dated_fields: List[str]
 
-    expected_result: dict
+    expected_result: Dict
 
     @classmethod
-    def from_file(cls, filepath: Path):
+    def from_file(cls: Type[T], pipeline: Path, filepath: Path) -> T:
         "Load a ConfigTest from a file."
         with filepath.open(mode="rb") as infile:
             data = json.load(infile)
 
-        return cls(**data)
+        # Remove these deprecated fields
+        data.pop("empty_files", None)
+        data.pop("mapped_files", None)
 
-    def check_results(self, pipeline_dir: Path) -> bool:
-        "Run the test against the given pipeline directory."
-        raise NotImplementedError()
+        result = cls(**data)
+        result.pipeline = pipeline
+        result.filepath = filepath.resolve()
+        return result
 
-    def to_file(self, filepath):
+    def replace_results(self: T, updated_results) -> T:
+        "Return another test object with updated results and filepath."
+        nf_version = updated_results.pop("betterconfig_nextflow_version")
+
+        regenerated_test = dataclasses.replace(
+            self,
+            nextflow_version=nf_version,
+            expected_result=updated_results
+        )
+
+        # These fields are not automatically copied, as they were set with
+        # init=False
+        regenerated_test.pipeline = self.pipeline
+        regenerated_test.filepath = self.filepath
+
+        return regenerated_test
+
+    def to_file(self):
         "Serialize a ConfigTest to a file."
-        with filepath.open(mode="w") as outfile:
+        data = dataclasses.asdict(self)
+        data.pop("pipeline")
+
+        with data.pop("filepath").open(mode="w") as outfile:
             json.dump(
-                dataclasses.asdict(self),
+                data,
                 outfile,
                 indent=2,
                 sort_keys=False
             )
+            # Add a trailing newline to the file
+            outfile.write("\n")
 
-
-class NextflowConfigTest(ConfigTest):
-    "A subclass."
-    SENTINEL = "=========SENTINEL_OUTPUT=========="
-    CONTAINER_DIR = Path("/mnt/bl_tests")
-
-    @classmethod
-    def from_file(cls, filepath: Path):
-        "Load a ConfigTest from a file."
-        result = super().from_file(filepath)
-        result.filepath = filepath
-        return result
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.filepath = None
-
-    def _run_test(self, pipeline_dir: Path):
+    def _run_test(self):
         "Get the resolved config of this pipepline."
         # pylint: disable=too-many-locals
-        with ExitStack() as stack:
-            # Make a temporary directory on the host to hold all of the
-            # scaffolding files for this test
-            tempdir = stack.enter_context(tempfile.TemporaryDirectory())
-
+        # Make a temporary directory on the host to hold all of the
+        # scaffolding files for this test
+        with tempfile.TemporaryDirectory() as tempdir:
             # Make a wrapper config file that will mock out the system calls
             # before including the real config file(s)
             config_file = Path(tempdir, "docker_test.config")
@@ -107,7 +121,7 @@ class NextflowConfigTest(ConfigTest):
 
                 for configfile in self.config:
                     outfile.write(
-                        f'    includeConfig "{pipeline_dir / configfile}"\n'
+                        f'    includeConfig "{self.pipeline / configfile}"\n'
                     )
 
                 # The config files can print arbitrary text to stdout; include
@@ -129,66 +143,31 @@ class NextflowConfigTest(ConfigTest):
                 encoding="utf-8"
             )
 
-            # Generate a list of volume-mount arguments
-            mounts = [
-                (pipeline_dir, pipeline_dir),
-                (tempdir, self.CONTAINER_DIR),
-            ]
-
-            for empty_file in self.empty_files:
-                mounts.append([
-                    stack.enter_context(tempfile.NamedTemporaryFile()).name,
-                    empty_file
-                ])
-
-            mount_args = []
-
-            for hpath, cpath in itertools.chain(mounts, self.mapped_files):
-                mount_args.extend(
-                    ["--volume", f"{pipeline_dir / hpath}:{cpath}"]
-                )
-
             # Generate a list of environment variable arguments
             envvars = {
+                **os.environ,
                 **self.envvars,
-                "BL_PIPELINE_DIR": pipeline_dir,
-                "BL_CONFIG_FILE": self.CONTAINER_DIR / config_file.name,
-                "BL_MOCKS_FILE": self.CONTAINER_DIR / mocks_file.name,
-                "BL_CLI_PARAMS_FILE":
-                    self.CONTAINER_DIR / cli_params_file.name,
+                "BL_PIPELINE_DIR": str(self.pipeline),
+                "BL_CONFIG_FILE": str(config_file),
+                "BL_MOCKS_FILE": str(mocks_file),
+                "BL_CLI_PARAMS_FILE": str(cli_params_file),
             }
 
             if self.params_file:
-                envvars["BL_PARAMS_FILE"] = pipeline_dir / self.params_file
-
-            envvar_args = []
-            for key, value in envvars.items():
-                envvar_args.extend(["--env", f"{key}={value}"])
-
-            container_id = None
+                envvars["BL_PARAMS_FILE"] = \
+                    str(self.pipeline / self.params_file)
 
             try:
-                # Launch the docker container in the background and immediately
-                # capture the container ID (so that we can clean up afterwards)
-                container_id = subprocess.run(
+                # Run the test and capture the output
+                config_output = subprocess.run(
                     [
-                        "docker",
-                        "run",
-                        "--detach",
-                        *mount_args,
-                        *envvar_args,
-                        build_image(),
+                        "/usr/local/bin/nextflow-config-test",
+                        "/usr/local/bltests/betterconfig.groovy",
                     ],
+                    env=envvars,
                     capture_output=True,
                     check=True,
                 ).stdout.decode("utf-8").strip()
-
-                process = subprocess.run(
-                    ["docker", "attach", container_id],
-                    capture_output=True,
-                    check=True
-                )
-                config_output = process.stdout.decode("utf-8")
 
             except subprocess.CalledProcessError as err:
                 print(err.cmd)
@@ -196,30 +175,109 @@ class NextflowConfigTest(ConfigTest):
                 print(err.stderr.decode("utf-8"))
                 raise
 
-            finally:
-                if container_id is not None:
-                    subprocess.run(
-                        ["docker", "stop", container_id],
-                        capture_output=True,
-                        check=False,
-                    )
-                    subprocess.run(
-                        ["docker", "rm", container_id],
-                        capture_output=True,
-                        check=False
-                    )
-
         config_text = config_output.rsplit(self.SENTINEL, maxsplit=1)[-1]
 
         try:
-            return parse_config(config_text)
+            return parse_config(config_text, self.dated_fields)
         except Exception:
             print(config_output)
             raise
 
-    def check_results(self, pipeline_dir: Path) -> bool:
+    def print_diffs(self, other: T):
+        "Print the diff results to the console."
+        diff_process = subprocess.run(
+            ["diff", self.filepath, other.filepath],
+            capture_output=True,
+            check=False
+        )
+        if diff_process.returncode == 0:
+            # No diff!
+            print("No changes!")
+            return
+
+        raw_diff = diff_process.stdout.decode("utf-8")
+
+        if "CI" not in os.environ:
+            # We're running from the console - print the raw diff
+            print(raw_diff)
+            return
+
+        # Diff lines look like:
+        # 176c176
+        # < "operand": "4",
+        # ---
+        # > "operand": "2",
+
+        # For multiline diffs the first line looks like:
+        # 572,574c572,574
+        context_re = re.compile(
+            r"""
+            ^(?P<from_start>\d+)        # First line of the left file
+            (?:,(?P<from_end>\d+))?     # Last line of the left file
+            [acd]                       # Add, change, or delete
+            (?P<to_start>\d+)           # First line of the right file
+            (?:,(?P<to_end>\d+))        # Last line of the right file
+            ?$\n
+            (?P<diff>(?:^[-<>].*$\n?)+) # Multiline diff text
+            """,
+            re.VERBOSE | re.MULTILINE
+        )
+
+        # Produce annotations in the GitHub UI
+        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
+
+        # The __equals__ method ignores some keys and is blind to any JSON
+        # formatting differences. If the two objects are __equal__ (meaning the
+        # test will pass) but have text differences, mark those differences as
+        # warnings. Otherwise mark them as errors.
+        if self == other:
+            level = "warning"
+        else:
+            level = "error"
+
+        for match in context_re.finditer(raw_diff):
+            data = match.groupdict()
+
+            error_data = {
+                "file": str(self.filepath),
+                "line": data["from_start"],
+            }
+            if data["from_end"] is not None:
+                error_data["endLine"] = data["from_end"]
+
+            annotation = ",".join(
+                f"{key}={value}" for (key, value) in error_data.items()
+            )
+
+            # %0A is a url-encoded linefeed - doing this enables multi-line
+            # annotations
+            diff = data['diff'].rstrip().replace('\n', '%0A')
+
+            print(f"::{level} {annotation}::{diff}")
+
+    def mark_for_archive(self):
+        "Emit GitHub workflow commands to archive this file."
+        if "GITHUB_OUTPUT" not in os.environ:
+            # Nothing to be done here
+            print("Unable to mark for archive")
+            return
+
+        # Emit details required to archive changed file
+        bad_characters = re.compile(r'[":<>|*?\r\n\\/]')
+
+        output_file = Path(os.environ["GITHUB_OUTPUT"])
+        with output_file.open(mode="w", encoding="utf-8") as outfile:
+            # Each archive file needs a unique key
+            key = bad_characters.sub(
+                "_",
+                str(self.filepath.relative_to(self.pipeline))
+            )
+            outfile.write(f"archive_key={key}\n")
+            outfile.write(f"archive_path={self.filepath}\n")
+
+    def recompute_results(self: T) -> T:
         "Compare the results."
-        result = self._run_test(pipeline_dir)
+        result = self._run_test()
 
         # These are namespaces defined in the common submodules
         boring_keys = {
@@ -235,31 +293,11 @@ class NextflowConfigTest(ConfigTest):
         for key in boring_keys:
             result.pop(key, None)
 
-        differences = diff_json(self.expected_result, result)
+        regenerated_test = self.replace_results(result)
+        # Update the filepath so as not to overwrite
+        regenerated_test.filepath = self.filepath.with_name(
+            self.filepath.stem + "-out.json"
+        )
+        regenerated_test.to_file()
 
-        # Filter out any differences resulting from dates
-        date_re = re.compile(r"\d{8}T\d{6}Z")
-        for index, (jsonpath, original, updated) in \
-                reversed(list(enumerate(differences))):
-            if re.sub(r"^\.+", "", jsonpath) in self.dated_fields:
-                if date_re.sub("", original) == date_re.sub("", updated):
-                    differences.pop(index)
-
-        if differences:
-            for key, original, updated in differences:
-                print(key)
-                print(original)
-                print(updated)
-                print("------")
-
-            if self.filepath:
-                outpath = self.filepath.with_stem(self.filepath.stem + "-out")
-                print("Saving updated file to", outpath)
-                dataclasses.replace(
-                    self,
-                    expected_result=result
-                ).to_file(outpath)
-
-            return False
-
-        return True
+        return regenerated_test
