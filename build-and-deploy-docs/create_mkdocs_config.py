@@ -146,7 +146,7 @@ def split_readme(readme_file: Path,
     Return a list of {<title>: <filename>} dictionaries suitable for a MkDocs
     nav element.
     """
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals,too-many-statements
     img_dir = docs_dir / 'img'
 
     docs_dir.mkdir(exist_ok=True)
