@@ -22,6 +22,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 - No longer fail on missing `gh-pages` branch
 - No longer fail on relative links to directories
+- No longer fail on broken links
+- Properly format headings with embedded markdown
+- Handle constructing anchor links for repeated headings
 
 ---
 

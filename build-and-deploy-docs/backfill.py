@@ -22,8 +22,8 @@ def checkrun(*args, context, **kwargs):
     except subprocess.CalledProcessError as err:
         print(f"Error while {context}")
         print("cmd:", err.cmd)
-        print("stdout:", err.stdout)
-        print("stderr:", err.stderr)
+        print("stdout:", err.stdout.decode("utf-8"))
+        print("stderr:", err.stderr.decode("utf-8"))
         raise
 
 
@@ -150,7 +150,7 @@ def backfill_tag_docs(pipeline_url: str):
                 print("Updated documentation at http://localhost:8000/")
                 if confirm("Push these docs live"):
                     subprocess.check_call(
-                        ["git", "push", "origin", "ghpages"],
+                        ["git", "push", "origin", "gh-pages"],
                         cwd=repo.path
                     )
                 else:

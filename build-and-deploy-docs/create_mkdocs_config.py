@@ -82,6 +82,34 @@ def parse_args():
     return parser.parse_args()
 
 
+def strip_markdown(text):
+    """
+    Strip away all Markdown formatting in this inline text.
+    """
+    renderer = MarkdownIt("gfm-like")
+
+    def render_code_inline(_renderer, tokens, i, _options, _env):
+        "Render just the content of the code block."
+        return tokens[i].content
+
+    renderer.add_render_rule("code_inline", render_code_inline)
+
+    def render_nothing(*_):
+        "Render nothing for offending tags."
+        return ""
+
+    # Ignore the following format styles:
+    #   **bold text** <strong>
+    #   [linked text](example.com) <link>
+    #   _italic text_ <em>
+    #   ~~struck text~~ <s>
+    for ignore_tag in ("strong", "link", "em", "s"):
+        renderer.add_render_rule(f"{ignore_tag}_open", render_nothing)
+        renderer.add_render_rule(f"{ignore_tag}_close", render_nothing)
+
+    return renderer.renderInline(text)
+
+
 def get_heading_anchor(text):
     """
     Return the anchor name GitHub would assign to this heading text.
@@ -89,7 +117,8 @@ def get_heading_anchor(text):
     # Based on https://gist.github.com/asabaylus/3071099, it seems like GitHub
     # replaces spaces with dashes and strips all special characters other than
     # - and _. I can't find an authoritative source confirming these rules.
-    no_spaces = re.sub(r"\s", "-", text.strip())
+    plain_text = strip_markdown(text.strip())
+    no_spaces = re.sub(r"\s", "-", plain_text)
     no_specials = re.sub(r"[^\w_-]", "", no_spaces)
     return no_specials.casefold()
 
@@ -117,7 +146,7 @@ def split_readme(readme_file: Path,
     Return a list of {<title>: <filename>} dictionaries suitable for a MkDocs
     nav element.
     """
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals,too-many-statements
     img_dir = docs_dir / 'img'
 
     docs_dir.mkdir(exist_ok=True)
@@ -151,8 +180,15 @@ def split_readme(readme_file: Path,
 
             # Associate this anchor with the current page
             anchor = get_heading_anchor(heading_content)
-            assert anchor not in anchor_pages
-            anchor_pages[anchor] = pages[-1].get_filename()
+
+            # Okay, repeated anchors get numbers appended
+            anchor_index = 0
+            constructed_anchor = anchor
+            while constructed_anchor in anchor_pages:
+                anchor_index += 1
+                constructed_anchor = f"{anchor}-{anchor_index}"
+
+            anchor_pages[constructed_anchor] = pages[-1].get_filename()
 
         pages[-1].tokens.append(token)
 
@@ -213,9 +249,15 @@ def split_readme(readme_file: Path,
         elif link.fragment:
             # This is an anchor link. As we've split the monolithic README into
             # multiple files, we need to prepend those filepaths.
-            link = link._replace(
-                path=anchor_pages[get_heading_anchor(link.fragment)],
-            )
+            try:
+                link = link._replace(
+                    path=anchor_pages[get_heading_anchor(link.fragment)],
+                )
+            except KeyError:
+                # Well, the link seems broken, so just leave it broken, but add
+                # a GitHub warning annotation
+                print("::warning title=Broken Link::", end="")
+                print(f"Broken anchor link {link.fragment}")
 
         return urlunparse(link)
 
@@ -250,7 +292,9 @@ def split_readme(readme_file: Path,
             encoding="utf-8"
         )
 
-        table_of_contents.append({page.title: page.get_filename()})
+        table_of_contents.append(
+            {strip_markdown(page.title): page.get_filename()}
+        )
 
     return table_of_contents
 
