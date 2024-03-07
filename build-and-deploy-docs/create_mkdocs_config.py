@@ -180,8 +180,15 @@ def split_readme(readme_file: Path,
 
             # Associate this anchor with the current page
             anchor = get_heading_anchor(heading_content)
-            assert anchor not in anchor_pages
-            anchor_pages[anchor] = pages[-1].get_filename()
+
+            # Okay, repeated anchors get numbers appended
+            anchor_index = 0
+            constructed_anchor = anchor
+            while constructed_anchor in anchor_pages:
+                anchor_index += 1
+                constructed_anchor = f"{anchor}-{anchor_index}"
+
+            anchor_pages[constructed_anchor] = pages[-1].get_filename()
 
         pages[-1].tokens.append(token)
 
