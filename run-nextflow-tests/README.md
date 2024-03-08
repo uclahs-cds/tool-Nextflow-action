@@ -53,6 +53,7 @@ jobs:
 ### Example Test
 ```json
 {
+  "nextflow_version": "23.10.0",
   "config": [
     "test/global.config",
     "test/config/gsv_discovery-all-tools.config"
