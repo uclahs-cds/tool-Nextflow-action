@@ -1,6 +1,7 @@
 import java.nio.file.Paths
 
 import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 import groovy.lang.Closure
 import groovy.lang.ProxyMetaClass
 import groovy.util.ConfigObject
@@ -22,12 +23,27 @@ class UserInterceptor implements Interceptor {
 
     boolean invokeMethod = true
     Map mocks
+    Map dynamic_mocks = [:]
 
     UserInterceptor(String mock_file) {
         def jsonSlurper = new JsonSlurper()
 
         this.mocks = jsonSlurper.parse(new File(mock_file))
         assert this.mocks instanceof Map
+
+        // Decode the "dynamic" mocks
+        def dynamic_pattern = /^DYNAMIC\|(?<name>.*)/
+
+        this.mocks.each { key, value ->
+            def match = key =~ dynamic_pattern
+            if (match) {
+                assert value instanceof Map
+
+                // Remove it from the plain mocks
+                this.mocks.remove(key)
+                this.dynamic_mocks[match.group("name")] = value
+            }
+        }
     }
 
     boolean doInvoke() {
@@ -38,8 +54,14 @@ class UserInterceptor implements Interceptor {
         if (mocks.containsKey(name)) {
             invokeMethod = false
             return mocks[name]
+        } else if (dynamic_mocks.containsKey(name)) {
+            def args_str = JsonOutput.toJson(args)
+            if (dynamic_mocks[name].containsKey(args_str)) {
+                invokeMethod = false
+                return dynamic_mocks[name][args_str]
+            }
+            throw new Exception("Dynamic mock $name does not contain $args_str")
         }
-
     }
 
     Object afterInvoke(Object obj, String name, Object[] args, Object result) {
