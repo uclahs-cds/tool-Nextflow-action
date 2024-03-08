@@ -87,13 +87,15 @@ Once enabled on a pipeline, this Action will perform checks like the following o
 
 ![Image of status checks](docs/status_checks.png)
 
-The `discover-tests` check should always succeed. It creates one `run-test` check per discovered test file, each of which can succeed or fail independently.
+The `discover` check should always succeed. It creates one `run` check per discovered test file, each of which can succeed or fail independently.
+
+The `summary` check will succeed if all `run`s succeed, or if no test files were discovered. This makes it suitable for use as a [required status check](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks).
 
 Any differences with the expected results are displayed as annotations in the pull request's code view:
 
 ![Diff annotation](docs/annotation.png)
 
-Each `run-test` check saves a new and valid test file as an artifact. This makes it easy to update failing tests - you can simply overwrite the failing test with the artifact and commit the changes (after verifying that they are expected).
+Each `run` check saves a new and valid test file as an artifact. This makes it easy to update failing tests - you can simply overwrite the failing test with the artifact and commit the changes (after verifying that they are expected).
 
 ![Artifact files](docs/artifacts.png)
 
