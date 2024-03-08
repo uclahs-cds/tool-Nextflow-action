@@ -6,7 +6,7 @@ on:
 
 # Inspired by https://blog.aspect.dev/github-actions-dynamic-matrix
 jobs:
-  discover-tests:
+  discover:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,18 +25,21 @@ jobs:
           with open(os.environ.get("GITHUB_OUTPUT"),
                   mode="w", encoding="utf-8") as outfile:
               outfile.write(f"testfiles={json.dumps(testfiles)}\n")
+              outfile.write(f"num_tests={json.dumps(bool(testfiles))}\n")
 
     outputs:
       testfiles: ${{ steps.listfiles.outputs.testfiles }}
+      num_tests: ${{ steps.listfiles.outputs.num_tests }}
 
-  run-test:
+  run:
     runs-on: ubuntu-latest
-    needs: discover-tests
+    needs: discover
+    if: ${{ fromJSON(needs.discover.outputs.num_tests) }}
 
     strategy:
       fail-fast: false
       matrix:
-        testfile: ${{ fromJSON(needs.discover-tests.outputs.testfiles) }}
+        testfile: ${{ fromJSON(needs.discover.outputs.testfiles) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -67,3 +70,14 @@ jobs:
           name: ${{ steps.dockertest.outputs.archive_key }}
           path: ${{ steps.dockertest.outputs.archive_path }}
         if: ${{ !cancelled() }}
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: run
+    if: ${{ !cancelled() }}
+
+    steps:
+      - uses: actions/github-script@v7
+        if: ${{ needs.run.result != 'success' && needs.run.result != 'skipped' }}
+        with:
+          script: core.setFailed('Tests failed!')

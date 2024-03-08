@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Add reusable workflow to run Nextflow regression tests
 - Add new `nextflow-config-tests` Docker image linked to this repository
 - Add `nfconfigtest` script to run regression tests locally
+- Add `summary` check for Nextflow tests
 
 ### Changed
 - Update output file name to explicitly specify `submodules`
@@ -26,6 +27,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - No longer fail on broken links
 - Properly format headings with embedded markdown
 - Handle constructing anchor links for repeated headings
+- No longer fail when no Nextflow tests are discovered
 
 ---
 
