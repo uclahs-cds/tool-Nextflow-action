@@ -53,6 +53,7 @@ jobs:
 ### Example Test
 ```json
 {
+  "nextflow_version": "23.10.0",
   "config": [
     "test/global.config",
     "test/config/gsv_discovery-all-tools.config"
@@ -107,3 +108,18 @@ The true Nextflow configuration output is slightly modified for usability:
     * The result of evaluating the closure
     * A map with the closure's code and the results of evaluating it with the additional variables `task.attempt` and `task.cpus` set
     * The static string `closure()`
+
+## Local Usage
+
+Regression tests can be run locally with the [`nfconfigtest`](./nfconfigtest) script included with this repository.
+
+```console
+usage: nfconfigtest [-h] [--dev] [--path repo]
+
+Run the Nextflow configuration regression tests for a specified pipeline.
+
+options:
+  -h, --help   show this help message and exit
+  --dev        Rebuild and use image from the checked-out repository
+  --path repo  Root of the repository to be tested (default: .)
+```

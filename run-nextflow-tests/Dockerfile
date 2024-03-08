@@ -28,7 +28,8 @@ RUN yum install -y python3 && \
         nextflow -v && \
     sed \
         $(find /.nextflow/tmp/launcher -name 'classpath-*' -printf '%T@\t%p\n' | sort -n | tail -n1 | cut -f2) \
-        -e 's|"nextflow.cli.Launcher"|"groovy.ui.GroovyMain" "$@"|' >> "$testscript"
+        -e 's|nextflow.cli.Launcher|groovy.ui.GroovyMain|' >> "$testscript" && \
+    echo ' "$@"' >> "$testscript"
 
 # Copy in the `nextflow config`-like groovy script
 COPY betterconfig.groovy /usr/local/bltests/

@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"Run the Nextflow configuration regression tests."
+import argparse
+import json
+import logging
+import math
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def build_image(nextflow_version: str) -> str:
+    "Rebuild the local image and return the image name."
+    image_name = f"local-nf-config-{nextflow_version}"
+
+    logging.debug("Rebuilding local image for version %s...", nextflow_version)
+
+    try:
+        subprocess.run(
+            ["docker", "build", ".", "-t", image_name],
+            cwd=Path(__file__).resolve().parent,
+            check=True,
+            capture_output=True,
+        )
+        logging.debug("Done!")
+
+    except subprocess.CalledProcessError as err:
+        logging.error("Failed to build image!")
+        logging.debug(err.stdout.decode("utf-8"))
+        logging.debug(err.stderr.decode("utf-8"))
+        raise
+
+    return image_name
+
+
+def tidy_docker(image: str,
+                pipeline: Path,
+                testfile: Path) -> bool:
+    """
+    Run docker in a self-cleaning way and return the result.
+    """
+    pipeline = pipeline.resolve()
+    testfile = testfile.resolve()
+
+    output_file = testfile.with_name(testfile.stem + "-out.json")
+
+    container_id = subprocess.run(
+        [
+            "docker",
+            "create",
+            "--rm",
+            "-v", f"{pipeline}:{pipeline}",
+            image,
+            pipeline,
+            testfile.resolve()
+        ],
+        capture_output=True,
+        check=True
+    ).stdout.decode("utf-8").strip()
+
+    try:
+        subprocess.run(
+            ["docker", "start", "--attach", container_id],
+            check=True,
+            capture_output=True
+        )
+        # Remove the identical output file
+        output_file.unlink()
+        return True
+
+    except subprocess.CalledProcessError as err:
+        if err.returncode == 82:
+            logging.warning("  Failure")
+            logging.warning(
+                "  Compare these files and copy any expected changes:"
+            )
+            logging.warning("  Original: %s", testfile)
+            logging.warning("  Output:   %s", output_file)
+        else:
+            logging.error("Error running test!")
+            logging.error(err.stdout.decode('utf-8'))
+            logging.error(err.stderr.decode('utf-8'))
+            raise RuntimeError('Error running test!') from err
+    finally:
+        # Due to the the `docker create --rm` flag the container will delete
+        # itself once it stops, so make sure that it does so. This command will
+        # fail if the container has already stopped, so ignore the return code.
+        subprocess.run(
+            ["docker", "stop", container_id],
+            capture_output=True,
+            check=False
+        )
+
+    return False
+
+
+def run_tests(path: Path, dev_image: bool) -> int:
+    "Run the pipeline tests and returns the number of failures."
+    logging.info("Looking for tests in %s", path.resolve().name)
+
+    test_files = [
+        filepath for filepath in path.glob("**/configtest*.json")
+        if not filepath.stem.endswith("-out")
+        and ".mypy_cache" not in filepath.parts
+    ]
+
+    test_count = len(test_files)
+
+    if test_count == 0:
+        logging.info("No tests found!")
+        return 1
+
+    digits = math.ceil(math.log10(test_count))
+    success_count = 0
+
+    log_format = f"#%{digits}d/%d: %s"
+
+    for index, test in enumerate(sorted(test_files)):
+        logging.info(log_format, index+1, test_count, test.relative_to(path))
+
+        # Check the Nextflow version of the test
+        with test.open() as infile:
+            nextflow_version = json.load(infile)["nextflow_version"]
+
+        if nextflow_version != "23.10.0":
+            logging.error(
+                "  ERROR: Only Nextflow version 23.10.0 is supported"
+            )
+            continue
+
+        if dev_image:
+            image_name = build_image(nextflow_version)
+        else:
+            image_name = ":".join([
+                "ghcr.io/uclahs-cds/nextflow-config-tests",
+                nextflow_version
+            ])
+            subprocess.run(
+                ["docker", "pull", image_name],
+                capture_output=True,
+                check=True
+            )
+
+        if tidy_docker(image_name, path, test):
+            logging.info("  Success!")
+            success_count += 1
+
+    logging.info("%d/%d tests passed", success_count, test_count)
+    return test_count - success_count
+
+
+def main() -> None:
+    "Run the Nextflow configuration regression tests."
+    logging.basicConfig(
+        format='%(message)s',
+        level=logging.INFO
+    )
+
+    parser = argparse.ArgumentParser(
+        description="""
+        Run the Nextflow configuration regression tests for a specified
+        pipeline.
+        """
+    )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Rebuild and use image from the checked-out repository"
+    )
+
+    parser.add_argument(
+        "--path",
+        type=Path,
+        default=Path(os.curdir),
+        metavar="repo",
+        help="Root of the repository to be tested (default: .)"
+    )
+
+    args = parser.parse_args()
+
+    if not args.path.is_dir():
+        parser.error(f"{str(args.path)} is not a directory")
+
+    # Determine the path to the .git directory
+    user_dir = args.path.resolve()
+
+    try:
+        root_dir = Path(
+            args.path,
+            subprocess.check_output(
+                ["git", "rev-parse", "--git-dir"],
+                cwd=user_dir
+            ).decode("utf-8").strip()
+        ).resolve().parent
+
+    except subprocess.CalledProcessError:
+        parser.error(f"{str(args.path)} is not in a git repository")
+
+    if root_dir != user_dir:
+        logging.info("... adjusting to pipeline root %s", root_dir)
+
+    sys.exit(run_tests(root_dir, args.dev))
+
+
+if __name__ == "__main__":
+    main()
