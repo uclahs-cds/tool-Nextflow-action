@@ -97,13 +97,20 @@ def tidy_docker(image: str,
 
 def run_tests(path: Path, dev_image: bool) -> int:
     "Run the pipeline tests and returns the number of failures."
-    logging.info("Running tests for %s", path.resolve().name)
+    logging.info("Looking for tests in %s", path.resolve().name)
+
     test_files = [
         filepath for filepath in path.glob("**/configtest*.json")
         if not filepath.stem.endswith("-out")
+        and ".mypy_cache" not in filepath.parts
     ]
 
     test_count = len(test_files)
+
+    if test_count == 0:
+        logging.info("No tests found!")
+        return 1
+
     digits = math.ceil(math.log10(test_count))
     success_count = 0
 
@@ -152,7 +159,8 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(
         description="""
-            Run the Nextflow configuration regression tests.
+        Run the Nextflow configuration regression tests for a specified
+        pipeline.
         """
     )
     parser.add_argument(
@@ -171,10 +179,28 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if not args.path.exists():
-        parser.error(f"{str(args.path)} does not exist")
+    if not args.path.is_dir():
+        parser.error(f"{str(args.path)} is not a directory")
 
-    sys.exit(run_tests(args.path.resolve(), args.dev))
+    # Determine the path to the .git directory
+    user_dir = args.path.resolve()
+
+    try:
+        root_dir = Path(
+            args.path,
+            subprocess.check_output(
+                ["git", "rev-parse", "--git-dir"],
+                cwd=user_dir
+            ).decode("utf-8").strip()
+        ).resolve().parent
+
+    except subprocess.CalledProcessError:
+        parser.error(f"{str(args.path)} is not in a git repository")
+
+    if root_dir != user_dir:
+        logging.info("... adjusting to pipeline root %s", root_dir)
+
+    sys.exit(run_tests(root_dir, args.dev))
 
 
 if __name__ == "__main__":
