@@ -28,4 +28,6 @@ if __name__ == "__main__":
     if run_pipeline_test(args.pipeline_path.resolve(), args.test_path):
         sys.exit(0)
 
-    sys.exit(1)
+    # Exit with code 82 to indicate that the tests successfully ran but
+    # differences were found
+    sys.exit(82)
