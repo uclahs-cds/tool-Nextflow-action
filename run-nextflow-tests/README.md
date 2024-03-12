@@ -31,6 +31,49 @@ Any methods that access files outside of the repository must be listed in `mocks
   }
 ```
 
+### Dynamic Mocks
+
+In very specific circumstances a mock function that returns a static value is insufficient - for example, a pipeline that requires paired input BAMs might check that they have separate sample IDs. That means that this mock...
+
+```json
+  "mocks": {
+    "parse_bam_header": {
+      "read_group": [
+        {
+          "SM": "495723"
+        }
+      ]
+    }
+  }
+```
+
+... would return the same sample ID for each input BAM and thus fail.
+
+To solve this, a dynamic mock like the following may be used:
+
+```json
+  "mocks": {
+    "DYNAMIC|parse_bam_header": {
+      "[\"/hot/software/pipeline/pipeline-SQC-DNA/Nextflow/development/test-input/HG002.N-n2.bam\"]": {
+        "read_group": [
+          {
+            "SM": "098765"
+          }
+        ]
+      },
+      "[\"/hot/software/pipeline/pipeline-SQC-DNA/Nextflow/development/test-input/S2.T-n2.bam\"]": {
+        "read_group": [
+          {
+            "SM": "52345245"
+          }
+        ]
+      }
+    }
+  }
+```
+
+Dynamic mocks have their method name prefixed with `DYNAMIC|`. Their values are maps with JSONified function arguments for keys and static return values as values. Note that the function arguments are always presented as a list, even for a single argument.
+
 ## Usage
 
 ### Workflow File
