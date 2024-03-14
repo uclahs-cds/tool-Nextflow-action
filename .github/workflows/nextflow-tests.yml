@@ -167,7 +167,7 @@ jobs:
             let prefix = "Alas, some of the Nextflow configuration tests failed"
 
             if (should_act && !should_fix) {
-              if (comments.length && !comments[comments.length-1].includes(prefix)) {
+              if (!comments.length || !comments[comments.length-1].includes(prefix)) {
                 github.rest.pulls.createReview({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -256,7 +256,7 @@ jobs:
               let prefix = "This is embarrassing..."
               var comments = ${{ steps.status.outputs.comments }}
 
-              if (comments.length && !comments[comments.length-1].includes(prefix)) {
+              if (!comments.length || !comments[comments.length-1].includes(prefix)) {
                 github.rest.pulls.createReview({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
