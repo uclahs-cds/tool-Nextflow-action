@@ -14,9 +14,12 @@ def run_pipeline_test(pipeline: Path, test_case: Path) -> bool:
 
     # Print any differences
     testobj.print_diffs(updated_testobj)
-    updated_testobj.mark_for_archive()
 
-    return testobj == updated_testobj
+    test_passed = testobj == updated_testobj
+
+    updated_testobj.mark_for_archive(test_passed)
+
+    return test_passed
 
 
 if __name__ == "__main__":

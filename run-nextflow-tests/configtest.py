@@ -255,7 +255,7 @@ class NextflowConfigTest:
 
             print(f"::{level} {annotation}::{diff}")
 
-    def mark_for_archive(self):
+    def mark_for_archive(self, test_passed):
         "Emit GitHub workflow commands to archive this file."
         if "GITHUB_OUTPUT" not in os.environ:
             # Nothing to be done here
@@ -272,6 +272,9 @@ class NextflowConfigTest:
                 "_",
                 str(self.filepath.relative_to(self.pipeline))
             )
+            if not test_passed:
+                key += " (changed)"
+
             outfile.write(f"archive_key={key}\n")
             outfile.write(f"archive_path={self.filepath}\n")
 

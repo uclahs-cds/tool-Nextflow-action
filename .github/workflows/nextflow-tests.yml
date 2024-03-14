@@ -78,6 +78,287 @@ jobs:
 
     steps:
       - uses: actions/github-script@v7
-        if: ${{ needs.run.result != 'success' && needs.run.result != 'skipped' }}
+        id: status
+        name: Determine required steps
         with:
-          script: core.setFailed('Tests failed!')
+          script: |
+            var needs = ${{ toJSON(needs) }}
+            var should_act = needs.run.result != 'success' &&
+              needs.run.result != 'skipped' &&
+              context.eventName == 'pull_request'
+
+            var should_fix = should_act &&
+              context.payload.pull_request.labels.some(
+                (value) => value.name == 'autofixable'
+            )
+
+            if (should_act && !should_fix) {
+              // Just in case... check if the live labels are different
+              let updated_pr = (await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number
+              })).data
+
+              should_fix = updated_pr.labels.some(
+                (value) => value.name == 'autofixable'
+              )
+
+              if (should_fix) {
+                console.log("Sneaky! The label value has changed!")
+              } else {
+                console.log("Aww, the live label is the same")
+              }
+            }
+
+            // Find the most recent open review from the bot, as well as all of
+            // the comments
+            let review_id = -1
+            let comments = []
+
+            /*
+            As far as I can tell, this is fixed... I wish I could figure out
+            how to infer this from the token. The users.getAuthenticated()
+            endpoint throws "HttpError: Resource not accessible by integration",
+            and GITHUB_ACTOR / GITHUB_ACTOR_ID / GITHUB_TRIGGERING_ACTOR refer
+            to the real user (not the bot).
+            */
+            let bot_id = 41898282
+
+            for await (const response of github.paginate.iterator(
+              github.rest.pulls.listReviews,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number
+              }
+            )) {
+              for (const review of response.data) {
+                if (review.user.id == bot_id) {
+                  comments.push(review.body)
+                  console.log(`Prior review: ${review.body}`)
+
+                  if (review.state == "CHANGES_REQUESTED") {
+                    // Save the newest review ID
+                    review_id = review.id
+                  } else if (review.state == "DISMISSED") {
+                    // Dismissals implicitly dismiss all prior reviews
+                    review_id = -1
+                  }
+                }
+              }
+            }
+
+            if (!should_act && review_id != -1) {
+              // There is an open review but the problems are resolved
+              await github.rest.pulls.dismissReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                review_id: review_id,
+                message: "All tests are passing!"
+              })
+            }
+
+            core.setOutput('should-act', should_act)
+            core.setOutput('should-fix', should_fix)
+            core.setOutput('comments', comments)
+
+            let prefix = "Alas, some of the Nextflow configuration tests failed"
+
+            if (should_act && !should_fix) {
+              if (comments.length && !comments[comments.length-1].includes(prefix)) {
+                github.rest.pulls.createReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.payload.pull_request.number,
+                  commit_id: context.payload.pull_request.head.sha,
+                  event: "REQUEST_CHANGES",
+                  body: `*Bleep bloop, I am a robot.*
+
+            ${ prefix }! There are two ways to fix this:
+
+            1. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.
+            2. **Automatically**: Apply the \`autofixable\` label to this pull request and I will update the tests for you (you should review my work afterwards).`
+                })
+              } else {
+                console.log("Still can't fix anything")
+              }
+            }
+
+      - if: ${{ steps.status.outputs.should-fix == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          # By default the depth is 1, which only fetches the current commit
+          # with no history. Instead fetch all history so we can compare it to
+          # the base branch. There doesn't seem to be any middle ground ("get
+          # everything between the two commits").
+          fetch-depth: 0
+
+      - if: ${{ steps.status.outputs.should-fix == 'true' }}
+        run: npm install @actions/artifact
+
+      - if: ${{ steps.status.outputs.should-fix == 'true' }}
+        id: createreview
+        name: Fix tests (with trailing whitespace)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Tests failed and we have been given permission to fix, so
+            // download all of the failed artifacts and overwrite the originals
+            const {DefaultArtifactClient} = require('@actions/artifact')
+            const artifact = new DefaultArtifactClient()
+
+            const fsPromises = require('fs/promises')
+
+            // Unlikely, but there may be enough artifacts that they are
+            // paginated
+            for await (const response of github.paginate.iterator(
+              github.rest.actions.listWorkflowRunArtifacts,
+              { owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId }
+            )) {
+              const bad_artifacts = response.data.filter(
+                value => /\(changed\)$/.test(value.name)
+              )
+
+              await Promise.all(bad_artifacts.map(async (value) => {
+                return await artifact.downloadArtifact(value.id)
+              }))
+            }
+
+            const file_patterns = ['configtest*.json', '**/configtest*.json']
+
+            // Get the list of all changed test files
+            const updated_tests = (await exec.getExecOutput(
+              'git',
+              ['ls-files', '--modified', '--', ...file_patterns],
+            )).stdout.trim().split(/\r?\n/)
+
+            /*
+            If any of those files were changed between the branch tip and the
+            merge commit, then they must have been changed in the main branch.
+            */
+            try {
+              await exec.exec('git',
+                [
+                  'diff-tree',
+                  'HEAD',
+                  context.payload.pull_request.head.sha,
+                  '--exit-code',
+                  '--name-status',
+                  '--',
+                  ...updated_tests
+                ]
+              )
+            } catch (error) {
+              let prefix = "This is embarrassing..."
+              var comments = ${{ steps.status.outputs.comments }}
+
+              if (comments.length && !comments[comments.length-1].includes(prefix)) {
+                github.rest.pulls.createReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.payload.pull_request.number,
+                  commit_id: context.payload.pull_request.head.sha,
+                  event: "REQUEST_CHANGES",
+                  body: `*Bleep bloop, I am a robot.*
+
+            ${prefix} the \`${ context.payload.pull_request.base.label.split(':').pop() }\` branch has test changes that haven't been merged into _this_ branch, and I can't handle that. Please fix that and then I can fix the tests for you!
+
+            \`\`\`console
+            cd /path/to/your/repository/
+            git checkout ${ context.payload.pull_request.head.label.split(':').pop() }
+            git fetch origin
+            git merge origin/main
+            git push origin
+            \`\`\``
+                })
+              } else {
+                console.log("Review state not changed")
+              }
+
+              core.setFailed("Need to merge tests")
+            }
+
+            /*
+            Ughhhh, this is so gross. GitHub won't run workflows on events
+            triggered from a workflow to prevent recursion. So... fix up all of
+            the tests, append a newline to one of them, open a review with that
+            as a suggested change, and let the user trigger a new build that
+            way.
+            */
+
+            await fsPromises.appendFile(updated_tests[0], "\n")
+
+            const line_count = Number.parseInt((await exec.getExecOutput(
+              'wc', ['-l', updated_tests[0]], { silent: true }
+            )).stdout)
+
+            var review_details = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              event: "REQUEST_CHANGES",
+              comments: [{
+                path: updated_tests[0],
+                side: "RIGHT",
+                start_side: "RIGHT",
+                line: line_count,
+                body: "```suggestion\n```"
+              }]
+            }
+
+            core.setOutput('review-details', review_details)
+
+      - if: ${{ steps.status.outputs.should-fix == 'true' }}
+        id: pushchanges
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Autofix Nextflow configuration regression tests
+          file_pattern: 'configtest*.json'
+
+      - if: ${{ steps.status.outputs.should-fix == 'true' }}
+        name: Create review to remove whitespace
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const timers = require('node:timers/promises')
+
+            var review_details = ${{ steps.createreview.outputs.review-details }}
+            review_details.commit_id = `${{ steps.pushchanges.outputs.commit_hash }}`
+            review_details.body = `*Bleep bloop, I am a robot.*
+
+            I have updated all of the failing tests for you with ${{ steps.pushchanges.outputs.commit_hash }}. GitHub won't allow me to re-trigger the tests on my own, but you can do so by accepting my suggested change below.`
+
+            // We need to trigger GitHub to actually compute the changes
+            // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
+            for (let i=0; i<10; i++) {
+              // Wait the first time - it will always take some time
+              await timers.setTimeout(3000)
+
+              console.log(`Waited ${i*3} seconds...`)
+
+              var updated_pr = (await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number
+              })).data
+
+              // The SHA must change and the new commit must have settled
+              if ((updated_pr.head.sha != context.payload.pull_request.head.sha)
+                  &&
+                  (updated_pr.mergeable != null)) {
+                break
+              }
+            }
+
+            await github.rest.pulls.createReview(review_details)
+
+      - uses: actions/github-script@v7
+        name: Final summary
+        if: ${{ steps.status.outputs.should-act == 'true' }}
+        with:
+          script: |
+            core.setFailed('Tests failed!')
