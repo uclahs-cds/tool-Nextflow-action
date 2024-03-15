@@ -261,16 +261,33 @@ class NextflowConfigTest:
 
         output_file = Path(os.environ["GITHUB_OUTPUT"])
         with output_file.open(mode="w", encoding="utf-8") as outfile:
+            relpath = str(self.filepath.relative_to(self.pipeline))
             # Each archive file needs a unique key
-            key = bad_characters.sub(
-                "_",
-                str(self.filepath.relative_to(self.pipeline))
-            )
+            key = bad_characters.sub("_", relpath)
+
             if not test_passed:
                 key += " (changed)"
 
+            # https://github.com/actions/upload-artifact#upload-using-multiple-paths-and-exclusions
+            # https://github.com/actions/upload-artifact/issues/174#issuecomment-1909478119
+            # Sigh. We also need to include a dummy file at the root to ensure
+            # that the directory structure is preserved
+            dummy_filename = f".{key}-dummy"
+            Path(dummy_filename).touch()
+
+            # Guard against malicious filenames
+            eof_index = 0
+            while f"EOF{eof_index}" in relpath:
+                eof_index += 1
+
             outfile.write(f"archive_key={key}\n")
-            outfile.write(f"archive_path={self.filepath}\n")
+            outfile.write("\n".join([
+                f"archive_path<<EOF{eof_index}",
+                relpath,
+                dummy_filename,
+                f"EOF{eof_index}",
+                ""
+            ]))
 
     def recompute_results(self: T, overwrite: bool) -> T:
         "Compare the results."
