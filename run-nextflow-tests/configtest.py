@@ -259,10 +259,6 @@ class NextflowConfigTest:
         "Emit GitHub workflow commands to archive this file."
         bad_characters = re.compile(r'[":<>|*?\r\n\\/]')
 
-        # Each test should run in isolation, so this folder should not exist
-        dummy_directory = Path(".git/dummy_files")
-        dummy_directory.mkdir()
-
         output_file = Path(os.environ["GITHUB_OUTPUT"])
         with output_file.open(mode="w", encoding="utf-8") as outfile:
             relpath = str(self.filepath.relative_to(self.pipeline))
@@ -275,11 +271,9 @@ class NextflowConfigTest:
             # https://github.com/actions/upload-artifact#upload-using-multiple-paths-and-exclusions
             # https://github.com/actions/upload-artifact/issues/174#issuecomment-1909478119
             # Sigh. We also need to include a dummy file at the root to ensure
-            # that the directory structure is preserved. To make sure they are
-            # not committed in a later step we'll hide them under the .git
-            # folder
-            dummy_file = Path(dummy_directory, f".{key}-dummy")
-            dummy_file.touch()
+            # that the directory structure is preserved
+            dummy_filename = f".{key}-dummy"
+            Path(dummy_filename).touch()
 
             # Guard against malicious filenames
             eof_index = 0
@@ -290,7 +284,7 @@ class NextflowConfigTest:
             outfile.write("\n".join([
                 f"archive_path<<EOF{eof_index}",
                 relpath,
-                str(dummy_file),
+                dummy_filename,
                 f"EOF{eof_index}",
                 ""
             ]))
