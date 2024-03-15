@@ -25,9 +25,14 @@ jobs:
                 status: "failure"
               }
             )) {
-              let restarted = response.data.some(workflow => {
-                // Use .some to stop after the first one is found
-                return workflow.referenced_workflows?.some(ref_wf => {
+              restarted = false
+
+              for (const workflow of response.data) {
+                if (!workflow.referenced_workflows) {
+                  continue
+                }
+
+                for (const ref_wf of workflow.referenced_workflows) {
                   if (ref_wf.path?.includes('uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml')) {
                     // Restart this one
                     await github.rest.actions.reRunWorkflow({
@@ -35,11 +40,13 @@ jobs:
                       repo: context.repo.repo,
                       run_id: workflow.id
                     })
-                    // Don't bother looking at the rest
-                    return true
+                    restarted = true
+                    break
                   }
-                })
-              })
+                }
+
+                if (restarted) { break }
+              }
 
               if (restarted) { break }
             }
