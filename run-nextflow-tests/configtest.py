@@ -257,12 +257,6 @@ class NextflowConfigTest:
 
     def mark_for_archive(self, test_passed):
         "Emit GitHub workflow commands to archive this file."
-        if "GITHUB_OUTPUT" not in os.environ:
-            # Nothing to be done here
-            print("Unable to mark for archive")
-            return
-
-        # Emit details required to archive changed file
         bad_characters = re.compile(r'[":<>|*?\r\n\\/]')
 
         output_file = Path(os.environ["GITHUB_OUTPUT"])
@@ -278,7 +272,7 @@ class NextflowConfigTest:
             outfile.write(f"archive_key={key}\n")
             outfile.write(f"archive_path={self.filepath}\n")
 
-    def recompute_results(self: T) -> T:
+    def recompute_results(self: T, overwrite: bool) -> T:
         "Compare the results."
         result = self._run_test()
 
@@ -297,10 +291,12 @@ class NextflowConfigTest:
             result.pop(key, None)
 
         regenerated_test = self.replace_results(result)
-        # Update the filepath so as not to overwrite
-        regenerated_test.filepath = self.filepath.with_name(
-            self.filepath.stem + "-out.json"
-        )
+        if not overwrite:
+            # Update the filepath so as not to overwrite
+            regenerated_test.filepath = self.filepath.with_name(
+                self.filepath.stem + "-out.json"
+            )
+
         regenerated_test.to_file()
 
         return regenerated_test
