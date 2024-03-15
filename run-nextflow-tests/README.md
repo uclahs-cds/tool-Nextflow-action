@@ -76,10 +76,14 @@ Dynamic mocks have their method name prefixed with `DYNAMIC|`. Their values are 
 
 ## Usage
 
-### Workflow File
+### Workflow Files
+
+This workflow is required:
 
 ```yaml
 ---
+name: Nextflow
+
 on:
   push:
     branches:
@@ -91,6 +95,24 @@ on:
 jobs:
   tests:
     uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml@main
+```
+
+This workflow is optional, and will automatically trigger a build when a pull request is tagged with `autofixable`. Without it you will need to either manually re-run the last build or push up any new commit.
+
+```yaml
+---
+name: Restart
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - labeled
+
+jobs:
+  tests:
+    uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-restart.yml@main
 ```
 
 ### Example Test
