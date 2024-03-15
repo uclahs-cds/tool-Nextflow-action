@@ -4,6 +4,10 @@ name: 'Nextflow tests'
 on:
   workflow_call:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.sha }}
+  cancel-in-progress: true
+
 # Inspired by https://blog.aspect.dev/github-actions-dynamic-matrix
 jobs:
   discover:
