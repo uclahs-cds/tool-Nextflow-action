@@ -200,7 +200,9 @@ jobs:
           fetch-depth: 0
 
       - if: ${{ steps.status.outputs.should-fix == 'true' }}
-        run: npm install @actions/artifact
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
 
       - if: ${{ steps.status.outputs.should-fix == 'true' }}
         id: createreview
@@ -208,30 +210,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // Tests failed and we have been given permission to fix, so
-            // download all of the failed artifacts and overwrite the originals
-            const {DefaultArtifactClient} = require('@actions/artifact')
-            const artifact = new DefaultArtifactClient()
-
-            const fsPromises = require('fs/promises')
-
-            // Unlikely, but there may be enough artifacts that they are
-            // paginated
-            for await (const response of github.paginate.iterator(
-              github.rest.actions.listWorkflowRunArtifacts,
-              { owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: context.runId }
-            )) {
-              const bad_artifacts = response.data.filter(
-                value => /\(changed\)$/.test(value.name)
-              )
-
-              await Promise.all(bad_artifacts.map(async (value) => {
-                return await artifact.downloadArtifact(value.id)
-              }))
-            }
-
             const file_patterns = ['configtest*.json', '**/configtest*.json']
 
             // Get the list of all changed test files
@@ -293,7 +271,7 @@ jobs:
             as a suggested change, and let the user trigger a new build that
             way.
             */
-
+            const fsPromises = require('fs/promises')
             await fsPromises.appendFile(updated_tests[0], "\n")
 
             const line_count = Number.parseInt((await exec.getExecOutput(
