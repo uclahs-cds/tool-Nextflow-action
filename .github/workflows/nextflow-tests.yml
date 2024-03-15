@@ -321,7 +321,8 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Autofix Nextflow configuration regression tests
-          file_pattern: configtest*.json **/configtest*.json
+          file_pattern: 'configtest*.json'
+          disable_globbing: true
 
       - if: ${{ steps.status.outputs.should-fix == 'true' }}
         name: Create review to remove whitespace
