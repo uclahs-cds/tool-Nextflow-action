@@ -1,0 +1,45 @@
+---
+name: Nextflow Restart
+
+on:
+  workflow_call:
+
+jobs:
+  rerun:
+    if: ${{ github.event.label.name == 'autofixable' }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/github-script@v7
+        name: Re-run failed workflows
+        with:
+          script: |
+            for await (const response of github.paginate.iterator(
+              github.rest.actions.listWorkflowRunsForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                event: "pull_request",
+                head_sha: context.payload.pull_request.head.sha,
+                status: "failure"
+              }
+            )) {
+              let restarted = response.data.some(workflow => {
+                // Use .some to stop after the first one is found
+                return workflow.referenced_workflows?.some(ref_wf => {
+                  if (ref_wf.path?.includes('uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml')) {
+                    // Restart this one
+                    await github.rest.actions.reRunWorkflow({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      run_id: workflow.id
+                    })
+                    // Don't bother looking at the rest
+                    return true
+                  }
+                })
+              })
+
+              if (restarted) { break }
+            }
