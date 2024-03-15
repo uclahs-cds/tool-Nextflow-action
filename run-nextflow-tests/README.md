@@ -87,11 +87,6 @@ on:
   pull_request:
     branches:
       - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
 
 jobs:
   tests:
