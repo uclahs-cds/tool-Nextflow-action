@@ -109,15 +109,17 @@ jobs:
 
       - if: ${{ steps.status.outputs.should-act == 'true' }}
         id: annotations
+        name: Create annotations
         shell: python
         run: |
-          import subprocess
-          import re
           import itertools
+          import os
+          import re
+          import subprocess
 
           def batched(iterable, num):
               "Copied from docs for python3.12"
-              # batched('ABCDEFG', 3) → ABC DEF G
+              # batched('ABCDEFG', 3) -> ABC DEF G
               if num < 1:
                   raise ValueError('n must be at least one')
               subiter = iter(iterable)
