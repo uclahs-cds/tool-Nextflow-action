@@ -25,7 +25,6 @@ jobs:
             let apply_fixes = context.eventName == 'issue_comment'
 
             let pr = {}
-            let ref = ""
 
             if (apply_fixes) {
               // React to the original comment
@@ -42,15 +41,15 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: context.payload.issue.number
               })
-              ref = `refs/pull/${context.payload.issue.number}/merge`
             } else {
               pr = context.payload.pull_request
-              ref = context.ref
             }
 
             core.setOutput('apply_fixes', apply_fixes)
-            core.setOutput('pr_obj', pr)
-            core.setOutput('checkout_ref', ref)
+            core.setOutput('checkout_ref', `refs/pull/${pr.number}/merge`)
+            core.setOutput('branch_ref', pr.head.ref)
+            core.setOutput('review_sha', pr.head.sha)
+            core.setOutput('pr_number', pr.number)
 
       - uses: actions/checkout@v4
         with:
@@ -76,8 +75,10 @@ jobs:
       testfiles: ${{ steps.listfiles.outputs.testfiles }}
       num_tests: ${{ steps.listfiles.outputs.num_tests }}
       apply_fixes: ${{ steps.parse-event.outputs.apply_fixes }}
-      pr_obj: ${{ steps.parse-event.outputs.pr_obj }}
-      checkout_ref: ${{ steps.listfiles.outputs.checkout_ref }}
+      checkout_ref: ${{ steps.parse-event.outputs.checkout_ref }}
+      branch_ref: ${{ steps.parse-event.outputs.branch_ref }}
+      review_sha: ${{ steps.parse-event.outputs.review_sha }}
+      pr_number: ${{ steps.parse-event.outputs.pr_number }}
 
   run:
     runs-on: ubuntu-latest
@@ -162,7 +163,7 @@ jobs:
               {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: needs.discover.outputs.pr_obj.number
+                pull_number: needs.discover.outputs.pr_number
               }
             )) {
               for (const review of response.data) {
@@ -186,7 +187,7 @@ jobs:
               await github.rest.pulls.dismissReview({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: context.payload.pull_request.number,
+                pull_number: needs.discover.outputs.pr_number,
                 review_id: review_id,
                 message: "All tests are passing!"
               })
@@ -247,7 +248,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
-                commit_id: context.payload.pull_request.head.sha,
+                commit_id: ${{ needs.discover.outputs.review_sha }},
                 event: "REQUEST_CHANGES",
                 body: [body, ...notes, suffix].join("\n")
               })
@@ -260,5 +261,5 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Autofix Nextflow configuration regression tests
-          branch: ${{ needs.discover.outputs.pr_obj.head.ref }}
+          branch: ${{ needs.discover.outputs.branch_ref }}
           file_pattern: '**/configtest*.json'
