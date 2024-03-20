@@ -48,8 +48,6 @@ jobs:
               ref = context.ref
             }
 
-            console.log(JSON.stringify(context))
-
             core.setOutput('apply_fixes', apply_fixes)
             core.setOutput('pr_obj', pr)
             core.setOutput('checkout_ref', ref)
@@ -157,8 +155,7 @@ jobs:
             */
             let bot_id = 41898282
 
-            console.log(JSON.stringify(context))
-            console.log(JSON.stringify(needs))
+            console.log(needs.discover.outputs)
 
             for await (const response of github.paginate.iterator(
               github.rest.pulls.listReviews,
