@@ -220,7 +220,6 @@ jobs:
         with:
           script: |
             const fsPromises = require('fs/promises')
-            console.log("Starting here")
 
             // Get the list of all annotation files
             const annotation_files = (await exec.getExecOutput(
@@ -229,7 +228,33 @@ jobs:
               ['ls-files', '--others', '--exclude-standard', '--', '*.prnote'],
             )).stdout.trim().split(/\r?\n/)
 
-            console.log(annotation_files)
+            let prefix = "Alas, some of the Nextflow configuration tests failed"
+
+            let comments = ${{ toJSON(steps.status.outputs.comments) }}
+
+            if (!comments.length || !comments[comments.length-1].includes(prefix)) {
+              let body = `*Bleep bloop, I am a robot.*\n\n${ prefix }!`
+
+              const notes = await Promise.all(annotation_files.map(filename => {
+                fsPromises.readFile(filename, {encoding: 'utf-8'})
+              }))
+
+              let suffix = `There are two ways to fix this:
+
+            1. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.
+            2. **Automatically**: Post a comment starting with "/fix-tests" (without the quotes) I will update the tests for you (you should review my work afterwards).`
+
+              github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                commit_id: ${{ toJSON(needs.discover.outputs.review_sha) }},
+                event: "REQUEST_CHANGES",
+                body: [body, ...notes, suffix].join("\n")
+              })
+            } else {
+              console.log("Still can't fix anything")
+            }
 
       - if: ${{ steps.status.outputs.should-fix == 'true' }}
         id: pushchanges
