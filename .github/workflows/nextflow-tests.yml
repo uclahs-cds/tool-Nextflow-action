@@ -13,7 +13,45 @@ jobs:
   discover:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/github-script@v7
+        name: Parse event
+        id: parse-event
+        with:
+          script: |
+            /*
+            We need to determine if the incoming event was from a pull_request
+            or an issue_comment
+            */
+            let apply_fixes = context.eventName == 'issue_comment'
+
+            if (apply_fixes) {
+              // React to the original comment
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: "rocket"
+              })
+
+              // Get the pull request context
+              let pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number
+              })
+              let ref = `refs/pull/${context.payload.issue.number}/merge`
+            } else {
+              let pr = context.payload.pull_request
+              let ref = context.ref
+            }
+
+            core.setOutput('apply_fixes', apply_fixes)
+            core.setOutput('pr_obj', pr)
+            core.setOutput('checkout_ref', ref)
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.parse-event.outputs.checkout_ref }}
 
       - id: listfiles
         shell: python
@@ -34,6 +72,9 @@ jobs:
     outputs:
       testfiles: ${{ steps.listfiles.outputs.testfiles }}
       num_tests: ${{ steps.listfiles.outputs.num_tests }}
+      apply_fixes: ${{ steps.parse-event.outputs.apply_fixes }}
+      pr_obj: ${{ steps.parse-event.outputs.pr_obj }}
+      checkout_ref: ${{ steps.listfiles.outputs.checkout_ref }}
 
   run:
     runs-on: ubuntu-latest
@@ -48,6 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.discover.outputs.checkout_ref }}
           submodules: true
 
       - uses: docker/login-action@v3
@@ -77,7 +119,7 @@ jobs:
 
   summary:
     runs-on: ubuntu-latest
-    needs: run
+    needs: [run, discover]
     if: ${{ !cancelled() }}
 
     steps:
@@ -87,119 +129,131 @@ jobs:
         with:
           script: |
             var needs = ${{ toJSON(needs) }}
-            var should_act = needs.run.result != 'success' &&
-              needs.run.result != 'skipped' &&
-              context.eventName == 'pull_request'
+            var tests_failed = needs.run.result != 'success' &&
+              needs.run.result != 'skipped'
 
-            core.setOutput('should-act', should_act)
+            var should_comment = tests_failed &&
+                !needs.discover.outputs.apply_fixes
 
-      - if: ${{ steps.status.outputs.should-act == 'true' }}
+            var should_fix = tests_failed &&
+                needs.discover.outputs.apply_fixes
+
+            // Find the most recent open review from the bot, as well as all of
+            // the comments
+            let review_id = -1
+            let comments = []
+
+            /*
+            As far as I can tell, this is fixed... I wish I could figure out
+            how to infer this from the token. The users.getAuthenticated()
+            endpoint throws "HttpError: Resource not accessible by integration",
+            and GITHUB_ACTOR / GITHUB_ACTOR_ID / GITHUB_TRIGGERING_ACTOR refer
+            to the real user (not the bot).
+            */
+            let bot_id = 41898282
+
+            for await (const response of github.paginate.iterator(
+              github.rest.pulls.listReviews,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: needs.discover.outputs.pr_obj.number
+              }
+            )) {
+              for (const review of response.data) {
+                if (review.user.id == bot_id) {
+                  comments.push(review.body)
+                  console.log(`Prior review: ${review.body}`)
+
+                  if (review.state == "CHANGES_REQUESTED") {
+                    // Save the newest review ID
+                    review_id = review.id
+                  } else if (review.state == "DISMISSED") {
+                    // Dismissals implicitly dismiss all prior reviews
+                    review_id = -1
+                  }
+                }
+              }
+            }
+
+            if (!should_fix && review_id != -1) {
+              // There is an open review but the problems are resolved
+              await github.rest.pulls.dismissReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                review_id: review_id,
+                message: "All tests are passing!"
+              })
+            }
+
+            core.setOutput('tests-failed', tests_failed)
+            core.setOutput('should-comment', should_comment)
+            core.setOutput('should-fix', should_fix)
+            core.setOutput('comments', comments)
+
+      - if: ${{ steps.status.outputs.tests-failed == 'true' }}
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.discover.outputs.checkout_ref }}
           # By default the depth is 1, which only fetches the current commit
           # with no history. Instead fetch all history so we can compare it to
           # the base branch. There doesn't seem to be any middle ground ("get
           # everything between the two commits").
           fetch-depth: 0
 
-      - if: ${{ steps.status.outputs.should-act == 'true' }}
+      - if: ${{ steps.status.outputs.tests-failed == 'true' }}
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
 
-      - if: ${{ steps.status.outputs.should-act == 'true' }}
-        id: annotations
-        name: Create annotations
-        shell: python
-        run: |
-          import itertools
-          import json
-          import os
-          import re
-          import subprocess
-
-          def batched(iterable, num):
-              "Copied from docs for python3.12"
-              # batched('ABCDEFG', 3) -> ABC DEF G
-              if num < 1:
-                  raise ValueError('n must be at least one')
-              subiter = iter(iterable)
-              while batch := tuple(itertools.islice(subiter, num)):
-                  yield batch
-
-          diff_header = re.compile(r"""
-              diff\s
-              --git\s
-              a/(?P<from>\S+)\s
-              b/(?P<to>\S+)\n
-              index.+\n
-              ---.+\n
-              \+\+\+.+\n
-              """, re.VERBOSE)
-
-          diff_chunk = re.compile(r"@@ -(\d+),(\d+) \+(\d+),(\d+) @@\n")
-
-          diff_output = subprocess.run(
-              ["git", "diff"],
-              capture_output=True,
-              check=True
-          ).stdout.strip().decode("utf-8")
-
-          file_chunks = diff_header.split(diff_output)
-          assert len(file_chunks[0]) == 0
-
-          file_chunks.pop(0)
-
-          assert len(file_chunks) % 3 == 0
-
-          annotations = []
-
-          for batch in batched(file_chunks, 3):
-              assert batch[0] == batch[1]
-              filename = batch[0]
-
-              diff_chunks = diff_chunk.split(batch[2])
-
-              assert len(diff_chunks[0]) == 0
-              diff_chunks.pop(0)
-              assert len(diff_chunks) % 5 == 0
-
-              for diff_batch in batched(diff_chunks, 5):
-                  from_line, from_length, to_line, to_length, diff = diff_batch
-
-                  annotations.append({
-                      "path": filename,
-                      "start_line": int(from_line),
-                      "end_line": int(from_line) + int(from_length) - 1,
-                      "annotation_level": "failure",
-                      "message": "```suggestion\n" + diff + "\n```"
-                  })
-
-          with open(os.environ.get("GITHUB_OUTPUT"),
-                  mode="w", encoding="utf-8") as outfile:
-              outfile.write(f"annotations={json.dumps(annotations)}\n")
-
-      - uses: actions/github-script@v7
-        name: Create check
-        if: ${{ steps.status.outputs.should-act == 'true' }}
+      - if: ${{ steps.status.outputs.should-comment == 'true' }}
+        id: createreview
+        name: Fix tests (with trailing whitespace)
+        uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.checks.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: 'Test Fixes',
-              head_sha: '${{ github.event.pull_request.head.sha }}',
-              status: 'completed',
-              conclusion: 'failure',
-              output: {
-                title: 'Results',
-                summary: 'This is the summary',
-                text: 'This is the _text_',
-                annotations: ${{ steps.annotations.outputs.annotations }}
-              },
-              actions: [{
-                label: 'LaBeL',
-                description: 'Do a thing from the desc',
-                identifier: 'identifier-twelve'
-              }]
-            })
+            const fsPromises = require('fs/promises')
+
+            // Get the list of all annotation files
+            const annotation_files = (await exec.getExecOutput(
+              'git',
+              git ls-files --others --exclude-standard
+              ['ls-files', '--others', '--exclude-standard', '--', '*.prnote'],
+            )).stdout.trim().split(/\r?\n/)
+
+            let prefix = "Alas, some of the Nextflow configuration tests failed"
+
+            let comments = ${{ toJSON(steps.status.outputs.comments) }}
+
+            if (!comments.length || !comments[comments.length-1].includes(prefix)) {
+              let body = `*Bleep bloop, I am a robot.*\n\n${ prefix }!`
+
+              const notes = await Promise.all(annotation_files.map(filename => {
+                fsPromises.readFile(filename, {encoding: 'utf-8'})
+              }))
+
+              let suffix = `There are two ways to fix this:
+
+            1. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.
+            2. **Automatically**: Post a comment starting with "/fix-tests" (without the quotes) I will update the tests for you (you should review my work afterwards).`
+
+              github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                commit_id: context.payload.pull_request.head.sha,
+                event: "REQUEST_CHANGES",
+                body: [body, ...notes, suffix].join("\n")
+              })
+            } else {
+              console.log("Still can't fix anything")
+            }
+
+      - if: ${{ steps.status.outputs.should-fix == 'true' }}
+        id: pushchanges
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Autofix Nextflow configuration regression tests
+          branch: ${{ needs.discover.outputs.pr_obj.head.ref }}
+          file_pattern: '**/configtest*.json'
