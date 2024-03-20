@@ -224,7 +224,6 @@ jobs:
             // Get the list of all annotation files
             const annotation_files = (await exec.getExecOutput(
               'git',
-              git ls-files --others --exclude-standard
               ['ls-files', '--others', '--exclude-standard', '--', '*.prnote'],
             )).stdout.trim().split(/\r?\n/)
 
