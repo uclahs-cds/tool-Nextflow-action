@@ -24,6 +24,9 @@ jobs:
             */
             let apply_fixes = context.eventName == 'issue_comment'
 
+            let pr = {}
+            let ref = ""
+
             if (apply_fixes) {
               // React to the original comment
               await github.rest.reactions.createForIssueComment({
@@ -34,15 +37,15 @@ jobs:
               })
 
               // Get the pull request context
-              let pr = await github.rest.pulls.get({
+              pr = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.issue.number
               })
-              let ref = `refs/pull/${context.payload.issue.number}/merge`
+              ref = `refs/pull/${context.payload.issue.number}/merge`
             } else {
-              let pr = context.payload.pull_request
-              let ref = context.ref
+              pr = context.payload.pull_request
+              ref = context.ref
             }
 
             core.setOutput('apply_fixes', apply_fixes)
