@@ -215,7 +215,7 @@ jobs:
 
       - if: ${{ steps.status.outputs.should-comment == 'true' }}
         id: createreview
-        name: Fix tests (with trailing whitespace)
+        name: Post review
         uses: actions/github-script@v7
         with:
           script: |
@@ -248,7 +248,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
-                commit_id: ${{ needs.discover.outputs.review_sha }},
+                commit_id: ${{ toJSON(needs.discover.outputs.review_sha) }},
                 event: "REQUEST_CHANGES",
                 body: [body, ...notes, suffix].join("\n")
               })
