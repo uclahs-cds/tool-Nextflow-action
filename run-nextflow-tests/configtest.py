@@ -280,10 +280,10 @@ class NextflowConfigTest:
                 after = Path(tempdir, "after.json")
 
                 with before.open(mode="w", encoding="utf-8") as outfile:
-                    json.dump(outfile, prior.expected_result)
+                    json.dump(prior.expected_result, outfile)
 
                 with after.open(mode="w", encoding="utf-8") as outfile:
-                    json.dump(outfile, self.expected_result)
+                    json.dump(self.expected_result, outfile)
 
                 jd_output = subprocess.run(
                     ["jd", "-set", before, after],
