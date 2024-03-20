@@ -137,10 +137,10 @@ jobs:
               needs.run.result != 'skipped'
 
             var should_comment = tests_failed &&
-                !needs.discover.outputs.apply_fixes
+                !(needs.discover.outputs.apply_fixes == 'true')
 
             var should_fix = tests_failed &&
-                needs.discover.outputs.apply_fixes
+                (needs.discover.outputs.apply_fixes == 'true')
 
             // Find the most recent open review from the bot, as well as all of
             // the comments
