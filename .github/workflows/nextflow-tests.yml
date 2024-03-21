@@ -59,6 +59,8 @@ jobs:
 
             You [requested](${ context.payload.comment.html_url }) that I fix the tests, but I can only do so after posting a comment _saying_ that I can do so.
             `
+                })
+
                 core.setFailed('No reviews present!')
               }
 
