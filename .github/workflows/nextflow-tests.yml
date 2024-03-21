@@ -36,11 +36,11 @@ jobs:
               })
 
               // Get the pull request context
-              pr = await github.rest.pulls.get({
+              pr = (await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.issue.number
-              })
+              })).data
             } else {
               pr = context.payload.pull_request
             }
