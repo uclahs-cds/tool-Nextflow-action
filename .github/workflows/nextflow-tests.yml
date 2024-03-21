@@ -234,9 +234,9 @@ jobs:
             if (!comments.length || !comments[comments.length-1].includes(prefix)) {
               let body = `*Bleep bloop, I am a robot.*\n\n${ prefix }!`
 
-              const notes = await Promise.all(annotation_files.map(filename => {
+              const notes = await Promise.all(annotation_files.map(filename =>
                 fsPromises.readFile(filename, {encoding: 'utf-8'})
-              }))
+              ))
 
               let suffix = `There are two ways to fix this:
 
