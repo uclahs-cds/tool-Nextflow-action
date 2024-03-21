@@ -227,7 +227,7 @@ jobs:
               }
             }
 
-            if (!should_fix && review_id != -1) {
+            if (!tests_failed && review_id != -1) {
               // There is an open review but the problems are resolved
               await github.rest.pulls.dismissReview({
                 owner: context.repo.owner,
