@@ -252,8 +252,8 @@ jobs:
           # the base branch. There doesn't seem to be any middle ground ("get
           # everything between the two commits").
           fetch-depth: 0
-          # Use a different token so that workflows can run on these commits
-          token: ${{ secrets.UCLAHS_CDS_REPO_READ_TOKEN }}
+          # If we're going to make commits, use a different token
+          token: ${{ steps.status.outputs.should-fix == 'true' && secrets.UCLAHS_CDS_REPO_READ_TOKEN || secrets.GITHUB_TOKEN }}
 
       - if: ${{ steps.status.outputs.tests-failed == 'true' }}
         uses: actions/download-artifact@v4
