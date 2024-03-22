@@ -341,8 +341,6 @@ jobs:
           script: |
             const timers = require('node:timers/promises')
 
-            var review_details = ${{ steps.createreview.outputs.review-details }}
-
             var review_details = {
               owner: context.repo.owner,
               repo: context.repo.repo,
