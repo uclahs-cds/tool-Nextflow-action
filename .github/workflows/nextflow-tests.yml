@@ -341,15 +341,17 @@ jobs:
           script: |
             const timers = require('node:timers/promises')
 
+            let commit_id = ${{ toJSON(steps.pushchanges.outputs.commit_hash) }}
+
             var review_details = {
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: ${{ toJSON(needs.discover.outputs.pr_number) }},
-              commit_id: ${{ toJSON(steps.pushchanges.outputs.commit_hash) }},
+              commit_id: commit_id,
               event: "COMMENT",
               body: `*Bleep bloop, I am a robot.*
 
-            I have updated all of the failing tests for you with ${{ steps.pushchanges.outputs.commit_hash }}. You must review my work before merging this pull request!`
+            I have updated all of the failing tests for you with ${ commit_id }. You must review my work before merging this pull request!`
             }
 
             // We need to trigger GitHub to actually compute the changes
