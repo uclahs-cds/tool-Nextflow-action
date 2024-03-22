@@ -15,7 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Add new `nextflow-config-tests` Docker image linked to this repository
 - Add `nfconfigtest` script to run regression tests locally
 - Add `summary` check for Nextflow tests
-- Ability for Nextflow tests to self-resolve if tagged with `autofixable`
+- Ability for Nextflow tests to self-resolve in response to "/fix-tests" comments
 
 ### Changed
 - Update output file name to explicitly specify `submodules`
