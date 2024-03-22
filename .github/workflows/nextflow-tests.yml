@@ -345,7 +345,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: ${{ toJSON(needs.discover.outputs.pr_number) }},
-              commit_id: ${{ toJSON(steps.pushchanges.outputs.commit_hash) }}
+              commit_id: ${{ toJSON(steps.pushchanges.outputs.commit_hash) }},
               event: "COMMENT",
               body: `*Bleep bloop, I am a robot.*
 
