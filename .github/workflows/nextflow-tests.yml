@@ -407,8 +407,8 @@ jobs:
 
             If the above changes are expected, there are two ways to fix this:
 
-            1. **Automatically**: Post a comment starting with "/fix-tests" (without the quotes) and I will update the tests for you (you must review my work afterwards).`
-            2. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.
+            1. **Automatically**: Post a comment starting with "/fix-tests" (without the quotes) and I will update the tests for you (you must review my work afterwards).
+            2. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.`
 
               github.rest.pulls.createReview({
                 owner: context.repo.owner,
