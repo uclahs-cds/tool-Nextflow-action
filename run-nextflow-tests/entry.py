@@ -23,7 +23,7 @@ def run_pipeline_test(pipeline: Path, test_case: Path) -> bool:
     test_passed = testobj == updated_testobj
 
     if is_action:
-        updated_testobj.mark_for_archive(test_passed)
+        updated_testobj.mark_for_archive(test_passed, testobj)
 
     return test_passed
 
