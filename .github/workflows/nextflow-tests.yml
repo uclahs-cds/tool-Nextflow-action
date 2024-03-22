@@ -369,7 +369,7 @@ jobs:
               })).data
 
               // The SHA must change and the new commit must have settled
-              if ((updated_pr.head.sha != ${{ toJSON(needs.discover.outputs.review_sha) }}
+              if ((updated_pr.head.sha != ${{ toJSON(needs.discover.outputs.review_sha) }})
                   &&
                   (updated_pr.mergeable != null)) {
                 break
