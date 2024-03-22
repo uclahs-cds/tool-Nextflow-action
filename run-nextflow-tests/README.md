@@ -97,22 +97,19 @@ jobs:
     uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml@main
 ```
 
-This workflow is optional, and will automatically trigger a build when a pull request is tagged with `autofixable`. Without it you will need to either manually re-run the last build or push up any new commit.
+This workflow is required for the bot to respond to "/fix-tests" requests. It requires `secrets: inherit` so that it can use the `UCLAHS_CDS_REPO_READ_TOKEN` token for the commit.
 
 ```yaml
 ---
-name: Restart
-
+name: Test Fixer
 on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - labeled
-
+  issue_comment:
+    types: [created]
 jobs:
-  tests:
-    uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-restart.yml@main
+  slashCommandDispatch:
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/fix-tests') }}
+    uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml@main
+    secrets: inherit
 ```
 
 ### Example Test
