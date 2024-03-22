@@ -293,7 +293,7 @@ class NextflowConfigTest:
 
             notepath = Path(self.pipeline, f".{key}.prnote")
             with notepath.open(mode="w", encoding="utf-8") as outfile:
-                outfile.write(f"- [ ] {relpath}\n```diff\n")
+                outfile.write(f"### {relpath}\n```diff\n")
                 outfile.write(jd_output)
                 outfile.write("```\n")
 
