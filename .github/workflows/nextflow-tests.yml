@@ -334,6 +334,50 @@ jobs:
           branch: ${{ needs.discover.outputs.branch_ref }}
           file_pattern: '**/configtest*.json'
 
+      - if: ${{ steps.status.outputs.should-fix == 'true' }}
+        name: Add comment about reviewing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const timers = require('node:timers/promises')
+
+            var review_details = ${{ steps.createreview.outputs.review-details }}
+
+            var review_details = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ toJSON(needs.discover.outputs.pr_number) }},
+              commit_id: ${{ toJSON(steps.pushchanges.outputs.commit_hash) }}
+              event: "COMMENT",
+              body: `*Bleep bloop, I am a robot.*
+
+            I have updated all of the failing tests for you with ${{ steps.pushchanges.outputs.commit_hash }}. You must review my work before merging this pull request!`
+            }
+
+            // We need to trigger GitHub to actually compute the changes
+            // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
+            for (let i=0; i<10; i++) {
+              // Wait the first time - it will always take some time
+              await timers.setTimeout(3000)
+
+              console.log(`Waited ${i*3} seconds...`)
+
+              var updated_pr = (await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number
+              })).data
+
+              // The SHA must change and the new commit must have settled
+              if ((updated_pr.head.sha != ${{ toJSON(needs.discover.outputs.review_sha) }}
+                  &&
+                  (updated_pr.mergeable != null)) {
+                break
+              }
+            }
+
+            await github.rest.pulls.createReview(review_details)
+
       - if: ${{ steps.status.outputs.should-comment == 'true' }}
         id: createreview
         name: Post review
@@ -359,10 +403,12 @@ jobs:
                 fsPromises.readFile(filename, {encoding: 'utf-8'})
               ))
 
-              let suffix = `There are two ways to fix this:
+              let suffix = `If the above changes are surprising, **stop** and determine what happened.
 
-            1. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.
-            2. **Automatically**: Post a comment starting with "/fix-tests" (without the quotes) I will update the tests for you (you should review my work afterwards).`
+            If the above changes are expected, there are two ways to fix this:
+
+            1. **Automatically**: Post a comment starting with "/fix-tests" (without the quotes) and I will update the tests for you (you must review my work afterwards).`
+            2. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.
 
               github.rest.pulls.createReview({
                 owner: context.repo.owner,
