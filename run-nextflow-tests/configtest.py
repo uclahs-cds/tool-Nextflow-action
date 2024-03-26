@@ -42,6 +42,7 @@ class NextflowConfigTest:
     mocks: Dict
 
     dated_fields: List[str]
+    version_fields: List[str]
 
     expected_result: Dict
 
@@ -54,6 +55,9 @@ class NextflowConfigTest:
         # Remove these deprecated fields
         data.pop("empty_files", None)
         data.pop("mapped_files", None)
+
+        # Bootstrap this new field that may not be present in existing files
+        data.setdefault("version_fields", [])
 
         result = cls(**data)
         result.pipeline = pipeline
@@ -181,7 +185,9 @@ class NextflowConfigTest:
         config_text = config_output.rsplit(self.SENTINEL, maxsplit=1)[-1]
 
         try:
-            return parse_config(config_text, self.dated_fields)
+            return parse_config(
+                config_text, self.dated_fields, self.version_fields
+            )
         except Exception:
             print(config_output)
             raise
