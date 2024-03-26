@@ -18,6 +18,9 @@ from utils import parse_config
 T = TypeVar('T', bound='NextflowConfigTest')
 
 
+BAD_CHARACTERS = re.compile(r'[":<>|*?\r\n\\/]')
+
+
 @dataclasses.dataclass
 class NextflowConfigTest:
     "A class representing a single Nextflow configuration test."
@@ -255,27 +258,67 @@ class NextflowConfigTest:
 
             print(f"::{level} {annotation}::{diff}")
 
-    def mark_for_archive(self):
+    def mark_for_archive(self, test_passed: bool, prior: T):
         "Emit GitHub workflow commands to archive this file."
-        if "GITHUB_OUTPUT" not in os.environ:
-            # Nothing to be done here
-            print("Unable to mark for archive")
-            return
+        relpath = str(self.filepath.relative_to(self.pipeline))
+        # Each archive file needs a unique key
+        key = BAD_CHARACTERS.sub("_", relpath)
 
-        # Emit details required to archive changed file
-        bad_characters = re.compile(r'[":<>|*?\r\n\\/]')
+        # https://github.com/actions/upload-artifact#upload-using-multiple-paths-and-exclusions
+        # https://github.com/actions/upload-artifact/issues/174#issuecomment-1909478119
+        # Sigh. We also need to include a dummy file at the root to ensure
+        # that the directory structure is preserved
+        dummy_filename = f".{key}-dummy"
+        Path(dummy_filename).touch()
+
+        filenames = [relpath, dummy_filename]
+
+        if not test_passed:
+            # Also save out a file at the repository root with the `jd` output
+            with tempfile.TemporaryDirectory() as tempdir:
+                before = Path(tempdir, "before.json")
+                after = Path(tempdir, "after.json")
+
+                with before.open(mode="w", encoding="utf-8") as outfile:
+                    json.dump(prior.expected_result, outfile)
+
+                with after.open(mode="w", encoding="utf-8") as outfile:
+                    json.dump(self.expected_result, outfile)
+
+                jd_output = subprocess.run(
+                    ["jd", "-set", before, after],
+                    capture_output=True,
+                    check=False
+                ).stdout.decode("utf-8")
+
+            notepath = Path(self.pipeline, f".{key}.prnote")
+            with notepath.open(mode="w", encoding="utf-8") as outfile:
+                outfile.write(f"### {relpath}\n```diff\n")
+                outfile.write(jd_output)
+                outfile.write("```\n")
+
+            filenames.append(str(notepath.relative_to(self.pipeline)))
+
+            # Also update the key name
+            key += " (changed)"
+
+        # Guard against malicious filenames
+        eof_index = 0
+        while f"EOF{eof_index}" in "".join(filenames):
+            eof_index += 1
 
         output_file = Path(os.environ["GITHUB_OUTPUT"])
-        with output_file.open(mode="w", encoding="utf-8") as outfile:
-            # Each archive file needs a unique key
-            key = bad_characters.sub(
-                "_",
-                str(self.filepath.relative_to(self.pipeline))
-            )
-            outfile.write(f"archive_key={key}\n")
-            outfile.write(f"archive_path={self.filepath}\n")
 
-    def recompute_results(self: T) -> T:
+        with output_file.open(mode="w", encoding="utf-8") as outfile:
+            outfile.write(f"archive_key={key}\n")
+            outfile.write("\n".join([
+                f"archive_path<<EOF{eof_index}",
+                *filenames,
+                f"EOF{eof_index}",
+                ""
+            ]))
+
+    def recompute_results(self: T, overwrite: bool) -> T:
         "Compare the results."
         result = self._run_test()
 
@@ -294,10 +337,12 @@ class NextflowConfigTest:
             result.pop(key, None)
 
         regenerated_test = self.replace_results(result)
-        # Update the filepath so as not to overwrite
-        regenerated_test.filepath = self.filepath.with_name(
-            self.filepath.stem + "-out.json"
-        )
+        if not overwrite:
+            # Update the filepath so as not to overwrite
+            regenerated_test.filepath = self.filepath.with_name(
+                self.filepath.stem + "-out.json"
+            )
+
         regenerated_test.to_file()
 
         return regenerated_test

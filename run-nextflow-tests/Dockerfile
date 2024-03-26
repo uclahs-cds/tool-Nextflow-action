@@ -6,9 +6,12 @@ FROM maven:${MAVEN_VERSION} AS builder
 COPY pom.xml /pom.xml
 RUN mvn --batch-mode dependency:copy-dependencies -DoutputDirectory=/bljars
 
+FROM josephburnett/jd:v1.8.1 AS jdimage
+
 FROM nextflow/nextflow:${NEXTFLOW_VERSION}
 
 COPY --from=builder /bljars /bljars
+COPY --from=jdimage /jd /usr/local/bin/jd
 
 # Modify the Nextflow launcher script to:
 # 1. Append the new jars to the classpath
