@@ -16,7 +16,8 @@ Configuration tests are self-contained JSON files named `configtest*.json` with 
 | nf_params | A map of command-line parameters to pass to Nextflow (`nextflow --<key>=<value>`) |
 | envvars | A map of environment variables to set (`KEY=VALUE nextflow ...`) |
 | mocks | Method names to be mocked, mapped to the objects they should return |
-| dated_field | A list of JSONPath-like keys indicating values in the rendered configuration that contain datestamps |
+| dated_fields | A list of JSONPath-like keys indicating values in the rendered configuration that contain datestamps |
+| version_fields | A list of JSONPath-like keys indicating values in the rendered configuration that contain the pipeline version number |
 | expected_results | The expected output of the test |
 
 For each test, this Action parses the configuration and runs a modified version of [`nextflow config`](https://www.nextflow.io/docs/latest/cli.html#config), comparing the results against `expected_results` and warning about any differences.
@@ -162,6 +163,7 @@ jobs:
 The true Nextflow configuration output is slightly modified for usability:
 
 * Every field listed in `dated_fields` has timestamps matching the format `YYYYMMDDTHHMMSSZ` replaced with the static value `19970704T165655Z` ([Pathfinder's landing](https://science.nasa.gov/mission/mars-pathfinder/)).
+* Every field listed in `version_fields` has sub-strings matching the `manifest.version` value replaced with the static value `VER.SI.ON`.
 * Every value that looks like a Java object (e.g. `[Ljava.lang.String;@49c7b90e`) has the hash code replaced with the static value `dec0ded`.
     * These should not appear in test files. When they do, it is a sign that the corresponding variable is missing a `def` in the configuration file.
 * Closures are expressed as the first valid item in this list:
