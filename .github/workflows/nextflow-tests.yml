@@ -51,7 +51,15 @@ jobs:
                 }
               }
 
-              if (!found_review) {
+              if (found_review) {
+                // React to the original comment
+                await github.rest.reactions.createForIssueComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: context.payload.comment.id,
+                  content: "rocket"
+                })
+              } else {
                 // Post a comment and fail
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
@@ -65,14 +73,6 @@ jobs:
 
                 // Mark that everything should stop
                 abort_early = true
-              } else {
-                // React to the original comment
-                await github.rest.reactions.createForIssueComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: context.payload.comment.id,
-                  content: "rocket"
-                })
               }
 
               // Get the pull request context
