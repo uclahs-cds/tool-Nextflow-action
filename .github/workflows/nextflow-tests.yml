@@ -178,14 +178,14 @@ jobs:
         name: Determine required steps
         with:
           script: |
-            var needs = ${{ toJSON(needs) }}
-            var tests_failed = needs.run.result != 'success' &&
+            let needs = ${{ toJSON(needs) }}
+            let tests_failed = needs.run.result != 'success' &&
               needs.run.result != 'skipped'
 
-            var should_comment = tests_failed &&
+            let should_comment = tests_failed &&
                 !(needs.discover.outputs.apply_fixes == 'true')
 
-            var should_fix = tests_failed &&
+            let should_fix = tests_failed &&
                 (needs.discover.outputs.apply_fixes == 'true')
 
             // Find the most recent open review from the bot, as well as all of
@@ -342,7 +342,7 @@ jobs:
 
             let commit_id = ${{ toJSON(steps.pushchanges.outputs.commit_hash) }}
 
-            var review_details = {
+            let review_details = {
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: ${{ toJSON(needs.discover.outputs.pr_number) }},
@@ -361,7 +361,7 @@ jobs:
 
               console.log(`Waited ${i*3} seconds...`)
 
-              var updated_pr = (await github.rest.pulls.get({
+              let updated_pr = (await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: ${{ toJSON(needs.discover.outputs.pr_number) }}
