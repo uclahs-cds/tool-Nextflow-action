@@ -258,8 +258,62 @@ class NextflowConfigTest:
 
             print(f"::{level} {annotation}::{diff}")
 
-    def mark_for_archive(self, test_passed: bool, prior: T):
-        "Emit GitHub workflow commands to archive this file."
+    def generate_outputs(self, prior: T, print_only: bool):
+        """
+        Emit any outputs for this test.
+
+        The `print_only` argument controls the kinds of outputs generated.
+
+        If `print_only` is True, this tool is assumed to be running locally
+        (not in GitHub Actions). The diff between the original expected_results
+        and the updated expected_results is printed to console.
+
+        If `print_only` is False, this tool is assumed to be running in GitHub
+        Actions. Lines are written to $GITHUB_OUTPUT (to be used by a later
+        workflow step) to create an artifact with the following files:
+            * The test file
+            * An empty file used to preserve the directory hierarchy
+            * (If diff found) A Markdown file with human-readable commentary
+              about the test differences. These notes (one per failed test) are
+              collected into a pull request review by a later workflow step.
+        """
+        # Generate the diff between the prior object and this object
+        with tempfile.TemporaryDirectory() as tempdir:
+            original_file = Path(tempdir, "before.json")
+            updated_file = Path(tempdir, "after.json")
+
+            original_file.write_text(
+                json.dumps(prior.expected_result),
+                encoding="utf-8"
+            )
+
+            updated_file.write_text(
+                json.dumps(self.expected_result),
+                encoding="utf-8"
+            )
+
+            jd_output = subprocess.run(
+                ["jd", "-set", original_file, updated_file],
+                capture_output=True,
+                check=False
+            ).stdout.decode("utf-8").strip()
+
+        # Sanity check: jd should produce no output if the objects match
+        if jd_output and self == prior:
+            print(jd_output)
+            raise RuntimeError("jd produced diffs for identical tests!")
+
+        # Sanity check: jd should produce output if the objects differ
+        if not jd_output and self != prior:
+            raise RuntimeError("jd produced no diffs for differing tests!")
+
+        if print_only:
+            # Running locally - just print the diff (if any)
+            if jd_output:
+                print(jd_output)
+            return
+
+        # Running in GitHub Actions
         relpath = str(self.filepath.relative_to(self.pipeline))
         # Each archive file needs a unique key
         key = BAD_CHARACTERS.sub("_", relpath)
@@ -273,33 +327,19 @@ class NextflowConfigTest:
 
         filenames = [relpath, dummy_filename]
 
-        if not test_passed:
-            # Also save out a file at the repository root with the `jd` output
-            with tempfile.TemporaryDirectory() as tempdir:
-                before = Path(tempdir, "before.json")
-                after = Path(tempdir, "after.json")
-
-                with before.open(mode="w", encoding="utf-8") as outfile:
-                    json.dump(prior.expected_result, outfile)
-
-                with after.open(mode="w", encoding="utf-8") as outfile:
-                    json.dump(self.expected_result, outfile)
-
-                jd_output = subprocess.run(
-                    ["jd", "-set", before, after],
-                    capture_output=True,
-                    check=False
-                ).stdout.decode("utf-8")
-
+        if jd_output:
+            # Write out a chunk of Markdown text describing the test
+            # differences. The eventual PR review will combine all such notes.
             notepath = Path(self.pipeline, f".{key}.prnote")
-            with notepath.open(mode="w", encoding="utf-8") as outfile:
-                outfile.write(f"### {relpath}\n```diff\n")
-                outfile.write(jd_output)
-                outfile.write("```\n")
+            with notepath.open(mode="w", encoding="utf-8") as note_fileobj:
+                note_fileobj.write(f"### {relpath}\n```diff\n")
+                note_fileobj.write(jd_output)
+                note_fileobj.write("```\n")
 
+            # Include the note in the list of files to be archived
             filenames.append(str(notepath.relative_to(self.pipeline)))
 
-            # Also update the key name
+            # Also update the key name to highlight tests with differences
             key += " (changed)"
 
         # Guard against malicious filenames
@@ -310,7 +350,12 @@ class NextflowConfigTest:
         output_file = Path(os.environ["GITHUB_OUTPUT"])
 
         with output_file.open(mode="w", encoding="utf-8") as outfile:
+            # Write out a string with the artifact's name
             outfile.write(f"archive_key={key}\n")
+
+            # Write out a multiline string encoding the files to be archived.
+            # Make sure to include the final trailing newline.
+            # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
             outfile.write("\n".join([
                 f"archive_path<<EOF{eof_index}",
                 *filenames,
@@ -338,7 +383,7 @@ class NextflowConfigTest:
 
         regenerated_test = self.replace_results(result)
         if not overwrite:
-            # Update the filepath so as not to overwrite
+            # Update the filepath so as not to overwrite the original
             regenerated_test.filepath = self.filepath.with_name(
                 self.filepath.stem + "-out.json"
             )
