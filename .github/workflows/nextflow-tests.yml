@@ -357,10 +357,10 @@ jobs:
             // We need to trigger GitHub to actually compute the changes
             // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
             for (let i=0; i<10; i++) {
-              // Wait the first time - it will always take some time
-              await timers.setTimeout(3000)
-
-              console.log(`Waited ${i*3} seconds...`)
+              if (i != 0) {
+                await timers.setTimeout(3000)
+                console.log(`Waited ${i*3} seconds...`)
+              }
 
               let updated_pr = (await github.rest.pulls.get({
                 owner: context.repo.owner,
