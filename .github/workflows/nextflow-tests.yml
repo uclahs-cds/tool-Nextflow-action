@@ -29,6 +29,7 @@ jobs:
             let abort_early = false
 
             if (apply_fixes) {
+              // Actions bot ID - see https://api.github.com/users/github-actions%5Bbot%5D
               let bot_id = 41898282
               let found_review = false
 
