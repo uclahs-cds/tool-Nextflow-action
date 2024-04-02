@@ -334,7 +334,7 @@ class NextflowConfigTest:
             with notepath.open(mode="w", encoding="utf-8") as note_fileobj:
                 note_fileobj.write(f"### {relpath}\n```diff\n")
                 note_fileobj.write(jd_output)
-                note_fileobj.write("```\n")
+                note_fileobj.write("\n```\n")
 
             # Include the note in the list of files to be archived
             filenames.append(str(notepath.relative_to(self.pipeline)))
