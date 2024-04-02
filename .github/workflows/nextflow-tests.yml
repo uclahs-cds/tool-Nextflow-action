@@ -183,7 +183,7 @@ jobs:
               needs.run.result != 'skipped'
 
             let should_comment = tests_failed &&
-                !(needs.discover.outputs.apply_fixes == 'true')
+                (needs.discover.outputs.apply_fixes != 'true')
 
             let should_fix = tests_failed &&
                 (needs.discover.outputs.apply_fixes == 'true')
