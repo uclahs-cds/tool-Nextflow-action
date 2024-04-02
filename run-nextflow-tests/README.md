@@ -76,10 +76,14 @@ Dynamic mocks have their method name prefixed with `DYNAMIC|`. Their values are 
 
 ## Usage
 
-### Workflow File
+### Workflow Files
+
+This workflow is required:
 
 ```yaml
 ---
+name: Nextflow
+
 on:
   push:
     branches:
@@ -91,6 +95,21 @@ on:
 jobs:
   tests:
     uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml@main
+```
+
+This workflow is required for the bot to respond to "/fix-tests" requests. It requires `secrets: inherit` so that it can use the `UCLAHS_CDS_REPO_READ_TOKEN` token for the commit.
+
+```yaml
+---
+name: Test Fixer
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  slashCommandDispatch:
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/fix-tests') }}
+    uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml@main
+    secrets: inherit
 ```
 
 ### Example Test

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 "Dockerfile entrypoint script."
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -9,13 +10,20 @@ from configtest import NextflowConfigTest
 
 def run_pipeline_test(pipeline: Path, test_case: Path) -> bool:
     "Run a pipeline test and save the results to a new file."
+    # Parse a test case object from the input file
     testobj = NextflowConfigTest.from_file(pipeline, test_case)
-    updated_testobj = testobj.recompute_results()
 
-    # Print any differences
-    testobj.print_diffs(updated_testobj)
-    updated_testobj.mark_for_archive()
+    # Are we running in GitHub Actions? If so, overwrite the original file and
+    # write out additional files to be included as workflow artifacts.
+    is_action = "GITHUB_OUTPUT" in os.environ
 
+    # Run Nextflow, capturing the results in a new test case object
+    updated_testobj = testobj.recompute_results(overwrite=is_action)
+
+    # Generate test outputs (console text or modified files)
+    updated_testobj.generate_outputs(prior=testobj, print_only=not is_action)
+
+    # Return True if the test outputs were unchanged
     return testobj == updated_testobj
 
 

@@ -18,6 +18,9 @@ from utils import parse_config
 T = TypeVar('T', bound='NextflowConfigTest')
 
 
+BAD_CHARACTERS = re.compile(r'[":<>|*?\r\n\\/]')
+
+
 @dataclasses.dataclass
 class NextflowConfigTest:
     "A class representing a single Nextflow configuration test."
@@ -255,27 +258,111 @@ class NextflowConfigTest:
 
             print(f"::{level} {annotation}::{diff}")
 
-    def mark_for_archive(self):
-        "Emit GitHub workflow commands to archive this file."
-        if "GITHUB_OUTPUT" not in os.environ:
-            # Nothing to be done here
-            print("Unable to mark for archive")
+    def generate_outputs(self, prior: T, print_only: bool):
+        """
+        Emit any outputs for this test.
+
+        The `print_only` argument controls the kinds of outputs generated.
+
+        If `print_only` is True, this tool is assumed to be running locally
+        (not in GitHub Actions). The diff between the original expected_results
+        and the updated expected_results is printed to console.
+
+        If `print_only` is False, this tool is assumed to be running in GitHub
+        Actions. Lines are written to $GITHUB_OUTPUT (to be used by a later
+        workflow step) to create an artifact with the following files:
+            * The test file
+            * An empty file used to preserve the directory hierarchy
+            * (If diff found) A Markdown file with human-readable commentary
+              about the test differences. These notes (one per failed test) are
+              collected into a pull request review by a later workflow step.
+        """
+        # Generate the diff between the prior object and this object
+        with tempfile.TemporaryDirectory() as tempdir:
+            original_file = Path(tempdir, "before.json")
+            updated_file = Path(tempdir, "after.json")
+
+            original_file.write_text(
+                json.dumps(prior.expected_result),
+                encoding="utf-8"
+            )
+
+            updated_file.write_text(
+                json.dumps(self.expected_result),
+                encoding="utf-8"
+            )
+
+            jd_output = subprocess.run(
+                ["jd", "-set", original_file, updated_file],
+                capture_output=True,
+                check=False
+            ).stdout.decode("utf-8").strip()
+
+        # Sanity check: jd should produce no output if the objects match
+        if jd_output and self == prior:
+            print(jd_output)
+            raise RuntimeError("jd produced diffs for identical tests!")
+
+        # Sanity check: jd should produce output if the objects differ
+        if not jd_output and self != prior:
+            raise RuntimeError("jd produced no diffs for differing tests!")
+
+        if print_only:
+            # Running locally - just print the diff (if any)
+            if jd_output:
+                print(jd_output)
             return
 
-        # Emit details required to archive changed file
-        bad_characters = re.compile(r'[":<>|*?\r\n\\/]')
+        # Running in GitHub Actions
+        relpath = str(self.filepath.relative_to(self.pipeline))
+        # Each archive file needs a unique key
+        key = BAD_CHARACTERS.sub("_", relpath)
 
-        output_file = Path(os.environ["GITHUB_OUTPUT"])
-        with output_file.open(mode="w", encoding="utf-8") as outfile:
-            # Each archive file needs a unique key
-            key = bad_characters.sub(
-                "_",
-                str(self.filepath.relative_to(self.pipeline))
-            )
+        # https://github.com/actions/upload-artifact#upload-using-multiple-paths-and-exclusions
+        # https://github.com/actions/upload-artifact/issues/174#issuecomment-1909478119
+        # Sigh. We also need to include a dummy file at the root to ensure
+        # that the directory structure is preserved
+        dummy_filename = f".{key}-dummy"
+        Path(dummy_filename).touch()
+
+        filenames = [relpath, dummy_filename]
+
+        if jd_output:
+            # Write out a chunk of Markdown text describing the test
+            # differences. The eventual PR review will combine all such notes.
+            notepath = Path(self.pipeline, f".{key}.prnote")
+            with notepath.open(mode="w", encoding="utf-8") as note_fileobj:
+                note_fileobj.write(f"### {relpath}\n```diff\n")
+                note_fileobj.write(jd_output)
+                note_fileobj.write("\n```\n")
+
+            # Include the note in the list of files to be archived
+            filenames.append(str(notepath.relative_to(self.pipeline)))
+
+            # Also update the key name to highlight tests with differences
+            key += " (changed)"
+
+        # Guard against malicious filenames
+        eof_index = 0
+        while f"EOF{eof_index}" in "".join(filenames):
+            eof_index += 1
+
+        with Path(os.environ["GITHUB_OUTPUT"])\
+                .open(mode="w", encoding="utf-8") as outfile:
+            # Write out a string with the artifact's name
             outfile.write(f"archive_key={key}\n")
-            outfile.write(f"archive_path={self.filepath}\n")
 
-    def recompute_results(self: T) -> T:
+            # Write out a multiline string encoding the files to be archived.
+            # Make sure to include the final trailing newline.
+            # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+            outfile.write("\n".join([
+                f"archive_path<<EOF{eof_index}",
+                *filenames,
+                f"EOF{eof_index}",
+                ""
+            ]))
+
+    def recompute_results(self: T, overwrite: bool) -> T:
         "Compare the results."
         result = self._run_test()
 
@@ -294,10 +381,12 @@ class NextflowConfigTest:
             result.pop(key, None)
 
         regenerated_test = self.replace_results(result)
-        # Update the filepath so as not to overwrite
-        regenerated_test.filepath = self.filepath.with_name(
-            self.filepath.stem + "-out.json"
-        )
+        if not overwrite:
+            # Update the filepath so as not to overwrite the original
+            regenerated_test.filepath = self.filepath.with_name(
+                self.filepath.stem + "-out.json"
+            )
+
         regenerated_test.to_file()
 
         return regenerated_test
