@@ -347,9 +347,8 @@ class NextflowConfigTest:
         while f"EOF{eof_index}" in "".join(filenames):
             eof_index += 1
 
-        output_file = Path(os.environ["GITHUB_OUTPUT"])
-
-        with output_file.open(mode="w", encoding="utf-8") as outfile:
+        with Path(os.environ["GITHUB_OUTPUT"])\
+                .open(mode="w", encoding="utf-8") as outfile:
             # Write out a string with the artifact's name
             outfile.write(f"archive_key={key}\n")
 
