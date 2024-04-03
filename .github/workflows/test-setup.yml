@@ -116,7 +116,7 @@ jobs:
               string "/fix-tests", the tests can't be fixed
               */
               if (config.apply_fixes) {
-                if (!config.comments || !config.comments[config.comments.length-1].includes('"/fix-tests"') {
+                if (!config.comments || !config.comments[config.comments.length-1].includes('"/fix-tests"')) {
                   await github.rest.issues.createComment({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
