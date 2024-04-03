@@ -5,7 +5,7 @@ on:
   workflow_call:
 
 jobs:
-  setup:
+  configure:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
@@ -50,12 +50,12 @@ jobs:
               // This is the minimal configuration required, and what is used
               // for a `push` event
               checkout_sha: context.sha,
+              review_sha: context.sha,
               do_summary: false,
 
               // These are used for issue_comment and pull_request_target
               apply_fixes: null,
               checkout_sha: null,
-              review_sha: null,
               base_ref: null,
               branch_ref: null,
               pr_number: null,

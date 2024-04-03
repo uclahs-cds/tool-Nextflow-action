@@ -48,6 +48,17 @@ jobs:
               core.setOutput(key, value);
             }
 
+            // Post a pending status on the commit
+            await github.rest.repos.createCommitStatus({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               sha: config.review_sha,
+               state: "pending",
+               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+               description: "Testing started...",
+               context: "Nextflow tests",
+            });
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.parse-event.outputs.checkout_sha }}
@@ -149,6 +160,30 @@ jobs:
             core.setOutput('tests-failed', tests_failed)
             core.setOutput('should-comment', should_comment)
             core.setOutput('should-fix', should_fix)
+
+            // Post a finalized status on the commit
+            let status_details = {
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               sha: ${{ toJSON(needs.discover.outputs.review_sha) }},
+               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+               context: "Nextflow tests",
+            };
+
+            if (tests_failed) {
+              status_details.state = "failure";
+              status_details.description = "Tests failed!";
+            } else {
+              status_details.state = "success";
+              status_details.description = "Tests passed!";
+            }
+
+            await github.rest.repos.createCommitStatus(status_details);
+
+            if (tests_failed && needs.discover.outputs.do_summary != "true") {
+              // Bail out here
+              core.setFailed("Tests failed for push!");
+            }
 
       - if: steps.status.outputs.tests-failed == 'true'
         uses: actions/checkout@v4
