@@ -62,7 +62,7 @@ jobs:
               bot_comments: [],
             };
 
-            if (["issue_comment", "pull_request_target"].contains(context.eventName)) {
+            if (["issue_comment", "pull_request_target"].includes(context.eventName)) {
               // The calling event is either a pull request or a comment
               config.do_summary = true;
 
