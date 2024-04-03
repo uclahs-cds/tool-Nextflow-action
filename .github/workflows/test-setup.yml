@@ -50,7 +50,7 @@ jobs:
               // This is the minimal configuration required, and what is used
               // for a `push` event
               checkout_sha: context.sha,
-              do_summary: false
+              do_summary: false,
 
               // These are used for issue_comment and pull_request_target
               apply_fixes: null,
