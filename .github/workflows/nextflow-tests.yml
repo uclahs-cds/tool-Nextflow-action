@@ -90,7 +90,7 @@ jobs:
       branch_ref: ${{ steps.parse-event.outputs.branch_ref }}
       pr_number: ${{ steps.parse-event.outputs.pr_number }}
       do_summary: ${{ steps.parse-event.outputs.do_summary }}
-      last_comment: $ {{ steps.parse-event.outputs.last_comment }}
+      last_comment: ${{ steps.parse-event.outputs.last_comment }}
 
   run:
     runs-on: ubuntu-latest
