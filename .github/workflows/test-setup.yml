@@ -107,7 +107,19 @@ jobs:
                 core.setFailed("Pull request is not mergeable!");
               }
 
-              // If this is a pull request, make sure the HEAD still matches
+              /*
+              For issue_comments, there is a race condition where an authorized
+              user triggers a build but an evildoer pushes a new commit to the
+              branch between then and now. That is handled by the concurrency
+              group - the push will trigger another run of this workflow and
+              cancel the issue_comment run.
+              */
+
+              /*
+              This case should also be protected by the concurrency group, but
+              just in case... make sure that the PR branch hasn't been updated
+              since this event fired. This will also cover re-runs of old jobs.
+              */
               if (context.eventName == "pull_request_target") {
                 console.log(`HEAD at workflow start time was ${context.payload.pull_request.head.sha}`);
                 console.log(`HEAD now is ${pr.head.sha}`);
@@ -115,12 +127,6 @@ jobs:
                 if (context.payload.pull_request.head.sha != pr.head.sha) {
                   core.setFailed(`PR HEAD changed!`);
                 }
-              } else {
-                // This is an issue_comment - make sure the PR has not updated
-                // since the original comment
-                console.log(`Comment made at ${context.payload.comment.created_at}`);
-                console.log(`Branch updated at ${pr.updated_at}`);
-                // FIXME THIS ISN'T ENOUGH
               }
 
               // Run all the tests on the merge commit
