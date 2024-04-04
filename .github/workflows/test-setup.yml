@@ -1,14 +1,8 @@
 ---
 name: Test Setup
 
-run-name: Testing ${{ github.event_name }}
-
 on:
   workflow_call:
-
-concurrency:
-  cancel-in-progress: true
-  group: ${{ github.repository }}X${{ github.event}}Y${{ 12 }}
 
 jobs:
   configure:
