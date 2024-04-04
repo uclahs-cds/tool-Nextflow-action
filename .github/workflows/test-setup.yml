@@ -142,8 +142,6 @@ jobs:
               // Actions bot ID - see https://api.github.com/users/github-actions%5Bbot%5D
               let bot_id = 41898282;
 
-              let index = 1;
-
               for await (const response of github.paginate.iterator(
                 github.rest.issues.listComments,
                 {

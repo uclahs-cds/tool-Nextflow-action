@@ -311,7 +311,6 @@ jobs:
             let prefix = "Alas, some of the Nextflow configuration tests failed"
 
             let last_comment = ${{ toJSON(needs.discover.outputs.last_comment) }};
-            console.log(comments);
 
             if (last_comment == null || !last_comment.includes(prefix)) {
               let body = `*Bleep bloop, I am a robot.*\n\n${ prefix }!`
