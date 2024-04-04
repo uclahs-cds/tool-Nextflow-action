@@ -48,17 +48,6 @@ jobs:
               core.setOutput(key, value);
             }
 
-            // Post a pending status on the commit
-            await github.rest.repos.createCommitStatus({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               sha: config.review_sha,
-               state: "pending",
-               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-               description: "Testing started...",
-               context: "Nextflow tests",
-            });
-
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.parse-event.outputs.checkout_sha }}

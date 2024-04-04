@@ -55,7 +55,6 @@ jobs:
 
               // These are used for issue_comment and pull_request_target
               apply_fixes: null,
-              checkout_sha: null,
               base_ref: null,
               branch_ref: null,
               pr_number: null,
@@ -70,17 +69,29 @@ jobs:
               config.apply_fixes = context.eventName == "issue_comment" &&
                 context.payload.comment.body.startsWith("/fix-tests");
 
-              let pr = {};
+              // We need to trigger GitHub to actually compute the changes
+              // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
+              const timers = require('node:timers/promises')
 
-              if (context.eventName == "issue_comment") {
-                // Get the pull request context
+              let pr = (await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue
+              })).data;
+
+              while (pr.mergeable == null) {
+                await timers.setTimeout(3000);
+                console.log(`Waited ${i*3} seconds...`);
+
                 pr = (await github.rest.pulls.get({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  pull_number: context.payload.issue.number
+                  pull_number: context.issue
                 })).data;
-              } else {
-                pr = context.payload.pull_request;
+              }
+
+              if (!pr.mergeable) {
+                core.setFailed("Pull request is not mergeable!");
               }
 
               // Run all the tests on the merge commit
@@ -134,6 +145,17 @@ jobs:
 
             let filename = "test-configuration.json"
             await fsPromises.writeFile(filename, JSON.stringify(config));
+
+            // Post a pending status on the commit
+            await github.rest.repos.createCommitStatus({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               sha: config.review_sha,
+               state: "pending",
+               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+               description: "Testing started...",
+               context: "Nextflow tests",
+            });
 
       - uses: actions/upload-artifact@v4
         with:
