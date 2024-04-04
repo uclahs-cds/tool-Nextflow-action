@@ -1,7 +1,7 @@
 ---
 name: Test Setup
 
-run-name: Testing ${{ github.event }}
+run-name: Testing ${{ github.event_name }}
 
 on:
   workflow_call:
