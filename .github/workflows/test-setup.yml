@@ -9,7 +9,7 @@ concurrency:
   group: >
     ${{ github.repository }}-${{
       github.event_name == 'push' && github.run_id ||
-      ('new')
+      (false && 'bad' || 'good')
     }}
 
 jobs:
