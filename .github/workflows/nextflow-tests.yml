@@ -138,8 +138,7 @@ jobs:
     needs: [run, discover]
     if: >
       needs.discover.result == 'success' &&
-      !cancelled() &&
-      needs.discover.outputs.do_summary == 'true'
+      !cancelled()
 
     steps:
       - uses: actions/github-script@v7
@@ -150,16 +149,6 @@ jobs:
             let needs = ${{ toJSON(needs) }}
             let tests_failed = needs.run.result != 'success' &&
               needs.run.result != 'skipped'
-
-            let should_comment = tests_failed &&
-                (needs.discover.outputs.apply_fixes != 'true')
-
-            let should_fix = tests_failed &&
-                (needs.discover.outputs.apply_fixes == 'true')
-
-            core.setOutput('tests-failed', tests_failed)
-            core.setOutput('should-comment', should_comment)
-            core.setOutput('should-fix', should_fix)
 
             // Post a finalized status on the commit
             let status_details = {
@@ -180,8 +169,21 @@ jobs:
 
             await github.rest.repos.createCommitStatus(status_details);
 
-            if (tests_failed && needs.discover.outputs.do_summary != "true") {
-              // Bail out here
+            let should_comment = tests_failed &&
+                (needs.discover.outputs.apply_fixes != 'true')
+
+            let should_fix = tests_failed &&
+                (needs.discover.outputs.apply_fixes == 'true')
+
+            core.setOutput('tests-failed', tests_failed)
+            core.setOutput('should-comment', should_comment)
+            core.setOutput('should-fix', should_fix)
+
+            /*
+            This needs to be the last step for `push` events. If any tests
+            failed, fail now to prevent downstream steps from running.
+            */
+            if (tests_failed && needs.discover.outputs.do_summary != 'true') {
               core.setFailed("Tests failed for push!");
             }
 
