@@ -6,7 +6,7 @@ on:
 
 concurrency:
   cancel-in-progress: true
-  group: ${{ github.repository }}-${{ github.event_name == 'push' && github.run_id || ( github.event_name == 'issue_comment' && github.event.issue.number || github.event.number) }}
+  group: ${{ github.repository }}-${{ github.event_name == 'push' && github.run_id || 'other' }}
 
 jobs:
   configure:
