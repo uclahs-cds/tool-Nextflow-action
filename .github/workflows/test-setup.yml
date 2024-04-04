@@ -80,7 +80,7 @@ jobs:
                   pull_number: context.payload.issue.number
                 })).data;
               } else {
-                pr = context.payload;
+                pr = context.payload.pull_request;
               }
 
               // Run all the tests on the merge commit
