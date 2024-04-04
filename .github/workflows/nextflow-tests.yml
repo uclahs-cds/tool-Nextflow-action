@@ -310,7 +310,8 @@ jobs:
 
             let prefix = "Alas, some of the Nextflow configuration tests failed"
 
-            let comments = ${{ toJSON(steps.status.outputs.bot_comments) }}
+            let comments = ${{ toJSON(needs.discover.outputs.bot_comments) }};
+            console.log(comments);
 
             if (!comments.length || !comments[comments.length-1].includes(prefix)) {
               let body = `*Bleep bloop, I am a robot.*\n\n${ prefix }!`
