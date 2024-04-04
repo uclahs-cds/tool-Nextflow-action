@@ -181,8 +181,7 @@ jobs:
                repo: context.repo.repo,
                sha: config.review_sha,
                state: "pending",
-               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-               description: "Testing started...",
+               description: "Tests requested...",
                context: "Nextflow tests",
             });
 
