@@ -6,7 +6,7 @@ on:
 
 concurrency:
   cancel-in-progress: true
-  group: ${{ github.repository }}X${{ github.event }}Y${{ 12 }}
+  group: ${{ github.repository }}X${{ github.repository }}Y${{ 12 }}
 
 jobs:
   configure:
