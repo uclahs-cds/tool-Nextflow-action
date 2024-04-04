@@ -245,12 +245,10 @@ jobs:
                 let base_ref = ${{ toJSON(needs.discover.outputs.base_ref) }}
                 let branch_ref = ${{ toJSON(needs.discover.outputs.branch_ref) }}
 
-                github.rest.pulls.createReview({
+                await github.rest.issues.createComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  pull_number: ${{ toJSON(needs.discover.outputs.pr_number) }},
-                  commit_id: ${{ toJSON(needs.discover.outputs.review_sha) }},
-                  event: "REQUEST_CHANGES",
+                  issue_number: ${{ toJSON(needs.discover.outputs.pr_number) }},
                   body: `*Bleep bloop, I am a robot.*
 
             ${prefix} the \`${ base_ref }\` branch has test changes that haven't been merged into _this_ branch, and I can't handle that. Please fix that and then I can fix the tests for you!
@@ -262,12 +260,12 @@ jobs:
             git merge origin/${ base_ref }
             git push origin
             \`\`\``
-                })
+                });
               } else {
-                console.log("Review state not changed")
+                console.log("Still need to merge, no change");
               }
 
-              core.setFailed("Need to merge tests")
+              core.setFailed("Need to merge tests");
             }
 
       - if: steps.status.outputs.should-fix == 'true'
@@ -287,38 +285,14 @@ jobs:
 
             let commit_id = ${{ toJSON(steps.pushchanges.outputs.commit_hash) }}
 
-            let comment_details = {
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: ${{ toJSON(needs.discover.outputs.pr_number) }},
               body: `*Bleep bloop, I am a robot.*
 
             I have updated all of the failing tests for you with ${ commit_id }. You must review my work before merging this pull request!`
-            }
-
-            // We need to trigger GitHub to actually compute the changes
-            // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
-            for (let i=0; i<10; i++) {
-              if (i != 0) {
-                await timers.setTimeout(3000)
-                console.log(`Waited ${i*3} seconds...`)
-              }
-
-              let updated_pr = (await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: ${{ toJSON(needs.discover.outputs.pr_number) }}
-              })).data
-
-              // The SHA must change and the new commit must have settled
-              if ((updated_pr.head.sha != ${{ toJSON(needs.discover.outputs.review_sha) }})
-                  &&
-                  (updated_pr.mergeable != null)) {
-                break
-              }
-            }
-
-            await github.rest.issues.createComment(comment_details)
+            });
 
       - if: ${{ steps.status.outputs.should-comment == 'true' }}
         id: createreview
