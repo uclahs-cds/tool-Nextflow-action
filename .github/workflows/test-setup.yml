@@ -6,10 +6,7 @@ on:
 
 concurrency:
   cancel-in-progress: true
-  group: >
-    ${{ github.repository }}-${{
-      github.event_name == 'push' && github.run_id || github.event.issue.number
-    }}
+  group: ${{ github.repository }}X${{ github.event.issue.number }}Y${{ 12 }}
 
 jobs:
   configure:
