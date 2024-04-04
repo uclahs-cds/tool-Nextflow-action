@@ -93,8 +93,7 @@ jobs:
               })).data;
 
               while (pr.mergeable == null) {
-                await timers.setTimeout(3000);
-                console.log(`Waited ${i*3} seconds...`);
+                await timers.setTimeout(1000);
 
                 pr = (await github.rest.pulls.get({
                   owner: context.repo.owner,
