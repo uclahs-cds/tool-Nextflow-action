@@ -90,7 +90,7 @@ jobs:
       branch_ref: ${{ steps.parse-event.outputs.branch_ref }}
       pr_number: ${{ steps.parse-event.outputs.pr_number }}
       do_summary: ${{ steps.parse-event.outputs.do_summary }}
-      bot_comments: $ {{ steps.parse-event.outputs.bot_comments }}
+      last_comment: $ {{ steps.parse-event.outputs.last_comment }}
 
   run:
     runs-on: ubuntu-latest
@@ -239,9 +239,9 @@ jobs:
             } catch (error) {
               let prefix = "This is embarrassing..."
 
-              let comments = ${{ toJSON(needs.discover.outputs.bot_comments) }}
+              let last_comment = ${{ toJSON(needs.discover.outputs.last_comment ) }}
 
-              if (!comments.length || !comments[comments.length-1].includes(prefix)) {
+              if (last_comment == null || !last_comment.includes(prefix)) {
                 let base_ref = ${{ toJSON(needs.discover.outputs.base_ref) }}
                 let branch_ref = ${{ toJSON(needs.discover.outputs.branch_ref) }}
 
@@ -310,10 +310,10 @@ jobs:
 
             let prefix = "Alas, some of the Nextflow configuration tests failed"
 
-            let comments = ${{ toJSON(needs.discover.outputs.bot_comments) }};
+            let last_comment = ${{ toJSON(needs.discover.outputs.last_comment) }};
             console.log(comments);
 
-            if (!comments.length || !comments[comments.length-1].includes(prefix)) {
+            if (last_comment == null || !last_comment.includes(prefix)) {
               let body = `*Bleep bloop, I am a robot.*\n\n${ prefix }!`
 
               const notes = await Promise.all(annotation_files.map(filename =>
