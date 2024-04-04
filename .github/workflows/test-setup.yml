@@ -142,6 +142,8 @@ jobs:
               // Actions bot ID - see https://api.github.com/users/github-actions%5Bbot%5D
               let bot_id = 41898282;
 
+              let index = 1;
+
               for await (const response of github.paginate.iterator(
                 github.rest.issues.listComments,
                 {
@@ -151,6 +153,7 @@ jobs:
                 }
               )) {
                 for (const comment of response.data) {
+                  console.log(`Index: ${index} ${comment.body}`);
                   if (comment.user.id == bot_id) {
                     config.bot_comments.push(comment.body);
                   }
