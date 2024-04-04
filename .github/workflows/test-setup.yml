@@ -90,7 +90,7 @@ jobs:
               config.review_sha = pr.head.sha;
 
               config.base_ref = pr.base.ref;
-              config.branch_ref = pr.branch.ref;
+              config.branch_ref = pr.head.ref;
               config.pr_number = pr.number;
 
               // Actions bot ID - see https://api.github.com/users/github-actions%5Bbot%5D
