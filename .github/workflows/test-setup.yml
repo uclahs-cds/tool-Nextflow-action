@@ -28,8 +28,6 @@ jobs:
             // Check if the triggering actor has write access
             let triggering_actor = ${{ toJSON(github.triggering_actor) }};
 
-            console.log(${{ toJSON(github) }});
-
             let permission_level = (await github.rest.repos.getCollaboratorPermissionLevel({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -88,9 +86,6 @@ jobs:
               // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
               const timers = require('node:timers/promises')
 
-              console.log(context);
-              console.log(context.issue);
-
               let pr = (await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -118,7 +113,7 @@ jobs:
                 console.log(`HEAD at workflow start time was ${context.payload.pull_request.head.sha}`);
                 console.log(`HEAD now is ${pr.head.sha}`);
 
-                if (context.payload.head.sha != pr.head.sha) {
+                if (context.payload.pull_request.head.sha != pr.head.sha) {
                   core.setFailed(`PR HEAD changed!`);
                 }
               } else {
