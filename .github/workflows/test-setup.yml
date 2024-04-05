@@ -1,0 +1,246 @@
+---
+name: Test Setup
+
+on:
+  workflow_call:
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+
+    if: >
+      github.event_name != 'issue_comment' || (
+        github.event.issue.pull_request &&
+        (
+          startsWith(github.event.comment.body, '/fix-tests') ||
+          startsWith(github.event.comment.body, '/run-tests')
+        )
+      )
+
+    concurrency:
+      cancel-in-progress: true
+      # Allow only one concurrent run per pull request. This will help prevent
+      # race conditions.
+      group: >
+        ${{ github.repository }}-
+        ${{
+          github.event_name == 'push' && github.run_id
+          ||
+          (
+            github.event_name == 'issue_comment' && github.event.issue.number
+            ||
+            github.event.number
+          )
+        }}
+
+    steps:
+      - uses: actions/github-script@v7
+        name: Check user permissions
+        with:
+          script: |
+            // If this is a comment, immediately react with a rocket to show
+            // that things are happening
+            if (context.eventName == "issue_comment") {
+              github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: "rocket"
+              });
+            }
+
+            // Check if the triggering actor has write access
+            let triggering_actor = ${{ toJSON(github.triggering_actor) }};
+
+            let permission_level = (await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: triggering_actor
+            })).data.permission;
+
+            let can_write = ["admin", "write"].includes(permission_level);
+            let is_dependabot = triggering_actor == 'dependabot[bot]';
+
+            if (!(can_write || is_dependabot)) {
+                // Post a comment and fail
+
+                // If this was a comment, mark it with a thumbs-down
+                if (context.eventName == "issue_comment") {
+                  await github.rest.reactions.createForIssueComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: context.payload.comment.id,
+                    content: "-1"
+                  });
+                }
+
+                let verb = context.payload.comment.body.startsWith("/fix-tests") ? "fix" : "run";
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.issue.number,
+                  body: `*Bleep bloop, I am a robot.*
+
+            Only repository collaborators are allowed to trigger the tests. Collaborators, please review the changes in this pull request and, if they are safe, ${verb} the tests on behalf of @${triggering_actor} by commenting "/${verb}-tests" (without the quotes).
+            `
+                });
+
+                core.setFailed(`${triggering_actor} does not have write permissions`);
+            }
+
+      - uses: actions/github-script@v7
+        name: Prep for test
+        with:
+          script: |
+            // Create an archive with all of the relevant control information
+            // for the actual test runner
+            const fsPromises = require('fs/promises')
+
+            let config = {
+              // This is the minimal configuration required, and what is used
+              // for a `push` event
+              checkout_sha: context.sha,
+              review_sha: context.sha,
+              do_summary: false,
+
+              // These are used for issue_comment and pull_request_target
+              apply_fixes: null,
+              base_ref: null,
+              branch_ref: null,
+              pr_number: null,
+              last_comment: null,
+            };
+
+            if (["issue_comment", "pull_request_target"].includes(context.eventName)) {
+              // The calling event is either a pull request or a comment
+              config.do_summary = true;
+
+              // Should the fixes be automatically applied?
+              config.apply_fixes = context.eventName == "issue_comment" &&
+                context.payload.comment.body.startsWith("/fix-tests");
+
+              // We need to trigger GitHub to actually compute the changes
+              // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
+              const timers = require('node:timers/promises')
+
+              let pr = (await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
+              })).data;
+
+              while (pr.mergeable == null) {
+                await timers.setTimeout(1000);
+
+                pr = (await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number
+                })).data;
+              }
+
+              // Make sure the PR is in a mergeable state
+              if (!pr.mergeable) {
+                core.setFailed("Pull request is not mergeable!");
+              }
+
+              /*
+              For issue_comments, there is a race condition where an authorized
+              user triggers a build but an evildoer pushes a new commit to the
+              branch between then and now. That is handled by the concurrency
+              group - the push will trigger another run of this workflow and
+              cancel the issue_comment run.
+              */
+
+              /*
+              This case should also be protected by the concurrency group, but
+              just in case... make sure that the PR branch hasn't been updated
+              since this event fired. This will also cover re-runs of old jobs.
+              */
+              if (context.eventName == "pull_request_target") {
+                console.log(`HEAD at workflow start time was ${context.payload.pull_request.head.sha}`);
+                console.log(`HEAD now is ${pr.head.sha}`);
+
+                if (context.payload.pull_request.head.sha != pr.head.sha) {
+                  core.setFailed(`PR HEAD changed!`);
+                }
+              }
+
+              // Run all the tests on the merge commit
+              config.checkout_sha = pr.merge_commit_sha;
+
+              // Post any reviews to the branch tip
+              config.review_sha = pr.head.sha;
+
+              config.base_ref = pr.base.ref;
+              config.branch_ref = pr.head.ref;
+              config.pr_number = pr.number;
+
+              // Actions bot ID - see https://api.github.com/users/github-actions%5Bbot%5D
+              let bot_id = 41898282;
+              let collab_message = "Only repository collaborators are allowed";
+
+              for await (const response of github.paginate.iterator(
+                github.rest.issues.listComments,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number
+                }
+              )) {
+                for (const comment of response.data) {
+                  if (comment.user.id == bot_id) {
+                    // Don't allow external users to get in the way
+                    if (!comment.body.includes(collab_message)) {
+                      config.last_comment = comment.body;
+                    }
+                  }
+                }
+              }
+
+              /*
+              One final check - if the last bot comment doesn't include the
+              string "/fix-tests", the tests can't be fixed
+              */
+              if (config.apply_fixes && (config.last_comment == null || !config.last_comment.includes("/fix-tests"))) {
+                // Mark it with a confused face
+                await github.rest.reactions.createForIssueComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: context.payload.comment.id,
+                  content: "confused"
+                });
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: `*Bleep bloop, I am a robot.*
+
+            You [requested](${ context.payload.comment.html_url }) that I fix the tests, but I can only do so after posting a comment _saying_ that I can do so.
+            `
+                });
+
+                core.setFailed("I didn't say I could fix the tests");
+                process.exit();
+              }
+            }
+
+            let filename = "test-configuration.json"
+            await fsPromises.writeFile(filename, JSON.stringify(config));
+
+            // Post a pending status on the commit
+            await github.rest.repos.createCommitStatus({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               sha: config.review_sha,
+               state: "pending",
+               description: "Tests requested...",
+               context: "Nextflow tests",
+            });
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: "test-configuration"
+          path: "test-configuration.json"
