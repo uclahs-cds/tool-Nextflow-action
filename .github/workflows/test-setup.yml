@@ -29,6 +29,17 @@ jobs:
         name: Check user permissions
         with:
           script: |
+            // If this is a comment, immediately react with a rocket to show
+            // that things are happening
+            if (context.eventName == "issue_comment") {
+              github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: "rocket"
+              });
+            }
+
             // Check if the triggering actor has write access
             let triggering_actor = ${{ toJSON(github.triggering_actor) }};
 
@@ -43,6 +54,17 @@ jobs:
 
             if (!(can_write || is_dependabot)) {
                 // Post a comment and fail
+
+                // If this was a comment, mark it with a thumbs-down
+                if (context.eventName == "issue_comment") {
+                  await github.rest.reactions.createForIssueComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: context.payload.comment.id,
+                    content: "-1"
+                  });
+                }
+
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -52,6 +74,7 @@ jobs:
             Only repository collaborators are allowed to trigger the tests. Collaborators, please review the changes in this pull request and, if they are safe, run the tests on behalf of @${triggering_actor} by commenting "/run-tests" (without the quotes).
             `
                 });
+
                 core.setFailed(`${triggering_actor} does not have write permissions`);
             }
 
@@ -168,6 +191,15 @@ jobs:
 
               if (config.apply_fixes) {
                 if (!config.comments || !config.comments[config.comments.length-1].includes('"/fix-tests"')) {
+
+                  // Mark it with a confused face
+                  await github.rest.reactions.createForIssueComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: context.payload.comment.id,
+                    content: "confused"
+                  });
+
                   await github.rest.issues.createComment({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
