@@ -4,14 +4,14 @@ name: Test Setup
 on:
   workflow_call:
 
-concurrency:
-  cancel-in-progress: true
-  group: >
-    ${{ github.repository }}-${{ github.event_name == 'push' && github.run_id || (github.event_name == 'issue_comment' && github.event.issue.number || github.event.number) }}
-
 jobs:
   configure:
     runs-on: ubuntu-latest
+
+    concurrency:
+      cancel-in-progress: true
+      group: >
+        ${{ github.repository }}-${{ github.event_name == 'push' && github.run_id || (github.event_name == 'issue_comment' && github.event.issue.number || github.event.number) }}
 
     steps:
       - run: echo "${{ github.repository }}-${{ github.event_name == 'push' && github.run_id || (github.event_name == 'issue_comment' && github.event.issue.number || github.event.number) }}"
