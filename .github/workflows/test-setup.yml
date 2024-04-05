@@ -74,13 +74,15 @@ jobs:
                   });
                 }
 
+                let verb = context.payload.comment.body.startsWith("/fix-tests") ? "fix" : "run";
+
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: context.payload.issue.number,
                   body: `*Bleep bloop, I am a robot.*
 
-            Only repository collaborators are allowed to trigger the tests. Collaborators, please review the changes in this pull request and, if they are safe, run the tests on behalf of @${triggering_actor} by commenting "/run-tests" (without the quotes).
+            Only repository collaborators are allowed to trigger the tests. Collaborators, please review the changes in this pull request and, if they are safe, ${verb} the tests on behalf of @${triggering_actor} by commenting "/${verb}-tests" (without the quotes).
             `
                 });
 
