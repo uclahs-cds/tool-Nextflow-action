@@ -177,6 +177,7 @@ jobs:
 
               // Actions bot ID - see https://api.github.com/users/github-actions%5Bbot%5D
               let bot_id = 41898282;
+              let collab_message = "Only repository collaborators are allowed"
 
               for await (const response of github.paginate.iterator(
                 github.rest.issues.listComments,
@@ -188,7 +189,10 @@ jobs:
               )) {
                 for (const comment of response.data) {
                   if (comment.user.id == bot_id) {
-                    config.last_comment = comment.body;
+                    // Don't allow external users to get in the way
+                    if (!comment.body.includes(collab_message) {
+                      config.last_comment = comment.body;
+                    }
                   }
                 }
               }
