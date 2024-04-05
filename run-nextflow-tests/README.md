@@ -78,36 +78,50 @@ Dynamic mocks have their method name prefixed with `DYNAMIC|`. Their values are 
 
 ### Workflow Files
 
-This workflow is required:
+These two workflows must be added to each repository. They will only behave correctly once merged to the `main` branch.
+
+```yaml
+---
+name: Trigger tests
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+  statuses: write
+
+jobs:
+  check-user:
+    uses: uclahs-cds/tool-Nextflow-action/.github/workflows/test-setup.yml@main
+```
 
 ```yaml
 ---
 name: Nextflow
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_run:
+    workflows: [Trigger Tests]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+  actions: read
+  packages: read
 
 jobs:
   tests:
-    uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml@main
-```
-
-This workflow is required for the bot to respond to "/fix-tests" requests. It requires `secrets: inherit` so that it can use the `UCLAHS_CDS_REPO_READ_TOKEN` token for the commit.
-
-```yaml
----
-name: Test Fixer
-on:
-  issue_comment:
-    types: [created]
-jobs:
-  slashCommandDispatch:
-    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/fix-tests') }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     uses: uclahs-cds/tool-Nextflow-action/.github/workflows/nextflow-tests.yml@main
     secrets: inherit
 ```
@@ -142,24 +156,6 @@ jobs:
   "expected_result": {}
 }
 ```
-
-## Outputs
-
-Once enabled on a pipeline, this Action will perform checks like the following on pull requests:
-
-![Image of status checks](docs/status_checks.png)
-
-The `discover` check should always succeed. It creates one `run` check per discovered test file, each of which can succeed or fail independently.
-
-The `summary` check will succeed if all `run`s succeed, or if no test files were discovered. This makes it suitable for use as a [required status check](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks).
-
-Any differences with the expected results are displayed as annotations in the pull request's code view:
-
-![Diff annotation](docs/annotation.png)
-
-Each `run` check saves a new and valid test file as an artifact. This makes it easy to update failing tests - you can simply overwrite the failing test with the artifact and commit the changes (after verifying that they are expected).
-
-![Artifact files](docs/artifacts.png)
 
 ### Output Modifications
 
