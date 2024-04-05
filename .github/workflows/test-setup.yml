@@ -188,7 +188,7 @@ jobs:
               One final check - if the last bot comment doesn't include the
               string "/fix-tests", the tests can't be fixed
               */
-              if (config.apply_fixes && (config.last_comment == null || !config.last_comment.startsWith("/fix-tests"))) {
+              if (config.apply_fixes && (config.last_comment == null || !config.last_comment.includes("/fix-tests"))) {
                 // Mark it with a confused face
                 await github.rest.reactions.createForIssueComment({
                   owner: context.repo.owner,
