@@ -8,6 +8,15 @@ jobs:
   configure:
     runs-on: ubuntu-latest
 
+    if: >
+      github.event_name != 'issue_comment' || (
+        github.event.issue.pull_request &&
+        (
+          startsWith(github.event.comment.body, '/fix-tests') ||
+          startsWith(github.event.comment.body, '/run-tests')
+        )
+      )
+
     concurrency:
       cancel-in-progress: true
       # Allow only one concurrent run per pull request. This will help prevent
