@@ -146,9 +146,9 @@ jobs:
         name: Determine required steps
         with:
           script: |
-            let needs = ${{ toJSON(needs) }}
+            let needs = ${{ toJSON(needs) }};
             let tests_failed = needs.run.result != 'success' &&
-              needs.run.result != 'skipped'
+              needs.run.result != 'skipped';
 
             // Post a finalized status on the commit
             let status_details = {
@@ -170,14 +170,14 @@ jobs:
             await github.rest.repos.createCommitStatus(status_details);
 
             let should_comment = tests_failed &&
-                (needs.discover.outputs.apply_fixes != 'true')
+                (needs.discover.outputs.apply_fixes != 'true');
 
             let should_fix = tests_failed &&
-                (needs.discover.outputs.apply_fixes == 'true')
+                (needs.discover.outputs.apply_fixes == 'true');
 
-            core.setOutput('tests-failed', tests_failed)
-            core.setOutput('should-comment', should_comment)
-            core.setOutput('should-fix', should_fix)
+            core.setOutput('tests-failed', tests_failed);
+            core.setOutput('should-comment', should_comment);
+            core.setOutput('should-fix', should_fix);
 
             /*
             This needs to be the last step for `push` events. If any tests
@@ -210,15 +210,15 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const file_patterns = ['configtest*.json', '**/configtest*.json']
+            const file_patterns = ['configtest*.json', '**/configtest*.json'];
 
             // Get the list of all changed test files
             const updated_tests = (await exec.getExecOutput(
               'git',
               ['ls-files', '--modified', '--', ...file_patterns],
-            )).stdout.trim().split(/\r?\n/)
+            )).stdout.trim().split(/\r?\n/);
 
-            let branch_sha = ${{ toJSON(needs.discover.outputs.review_sha) }}
+            let branch_sha = ${{ toJSON(needs.discover.outputs.review_sha) }};
 
             /*
             If any of those files were changed between the branch tip and the
@@ -235,15 +235,15 @@ jobs:
                   '--',
                   ...updated_tests
                 ]
-              )
+              );
             } catch (error) {
-              let prefix = "This is embarrassing..."
+              let prefix = "This is embarrassing...";
 
-              let last_comment = ${{ toJSON(needs.discover.outputs.last_comment ) }}
+              let last_comment = ${{ toJSON(needs.discover.outputs.last_comment ) }};
 
               if (last_comment == null || !last_comment.includes(prefix)) {
-                let base_ref = ${{ toJSON(needs.discover.outputs.base_ref) }}
-                let branch_ref = ${{ toJSON(needs.discover.outputs.branch_ref) }}
+                let base_ref = ${{ toJSON(needs.discover.outputs.base_ref) }};
+                let branch_ref = ${{ toJSON(needs.discover.outputs.branch_ref) }};
 
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
@@ -281,9 +281,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const timers = require('node:timers/promises')
-
-            let commit_id = ${{ toJSON(steps.pushchanges.outputs.commit_hash) }}
+            let commit_id = ${{ toJSON(steps.pushchanges.outputs.commit_hash) }};
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -300,41 +298,41 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const fsPromises = require('fs/promises')
+            const fsPromises = require('fs/promises');
 
             // Get the list of all annotation files
             const annotation_files = (await exec.getExecOutput(
               'git',
               ['ls-files', '--others', '--exclude-standard', '--', '*.prnote'],
-            )).stdout.trim().split(/\r?\n/)
+            )).stdout.trim().split(/\r?\n/);
 
-            let prefix = "Alas, some of the Nextflow configuration tests failed"
+            let prefix = "Alas, some of the Nextflow configuration tests failed";
 
             let last_comment = ${{ toJSON(needs.discover.outputs.last_comment) }};
 
             if (last_comment == null || !last_comment.includes(prefix)) {
-              let body = `*Bleep bloop, I am a robot.*\n\n${ prefix }!`
+              let body = `*Bleep bloop, I am a robot.*\n\n${ prefix }!`;
 
               const notes = await Promise.all(annotation_files.map(filename =>
                 fsPromises.readFile(filename, {encoding: 'utf-8'})
-              ))
+              ));
 
               let suffix = `If the above changes are surprising, **stop** and determine what happened.
 
             If the above changes are expected, there are two ways to fix this:
 
             1. **Automatically**: Post a comment starting with "/fix-tests" (without the quotes) and I will update the tests for you (you must review my work afterwards).
-            2. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.`
+            2. **Manually**: Follow [these steps](https://uclahs-cds.atlassian.net/wiki/spaces/BOUTROSLAB/pages/254115842/Nextflow+Configuration+Regression+Tests#Resolving-Pull-Request-Check-Failures) on Confluence.`;
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: ${{ toJSON(needs.discover.outputs.pr_number) }},
                 body: [body, ...notes, suffix].join("\n")
-              })
+              });
             } else {
-              console.log("Still can't fix anything")
+              console.log("Still can't fix anything");
             }
 
             // Make sure the job fails regardless
-            core.setFailed('Tests failed!')
+            core.setFailed('Tests failed!');
