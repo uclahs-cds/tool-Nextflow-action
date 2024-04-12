@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Improved GitHub links in documentation links for tagged versions
 - Add dynamic mocks to Nextflow regression tests
 - Resolve permissions issues with Nextflow tests via multiple workflows
+- Rename workflow and status check name to 'Nextflow config tests'
 
 ### Fixed
 - No longer fail on missing `gh-pages` branch

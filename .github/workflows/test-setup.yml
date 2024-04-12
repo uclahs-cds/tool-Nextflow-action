@@ -237,7 +237,7 @@ jobs:
                sha: config.review_sha,
                state: "pending",
                description: "Tests requested...",
-               context: "Nextflow tests",
+               context: "Nextflow config tests",
             });
 
       - uses: actions/upload-artifact@v4
