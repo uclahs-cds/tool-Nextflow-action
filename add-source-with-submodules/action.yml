@@ -20,7 +20,7 @@ runs:
         submodules: 'recursive'
         token: ${{ inputs.my-token }}
     - id: create-tar-file
-      uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@latest
+      uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@nwiltsie-protect-credentials
       with:
         repository-directory: ${{ steps.repository-path.outputs.repository-path }}
     - name: release
