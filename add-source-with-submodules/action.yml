@@ -14,11 +14,12 @@ runs:
     - id: set-to-https
       shell: bash
       run: echo -e '[url "https://github.com/"]\n  insteadOf = "git@github.com:"' >> ~/.gitconfig
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         path: ${{ steps.repository-path.outputs.repository-path }}
         submodules: 'recursive'
         token: ${{ inputs.my-token }}
+        persist-credentials: false
     - id: create-tar-file
       uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@latest
       with:

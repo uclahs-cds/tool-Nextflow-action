@@ -15,5 +15,5 @@ runs:
     - id: compress-repository
       shell: bash
       run: |
-        tar -czvf source_code_with_submodules.tar.gz ${{ inputs.repository-directory }}
+        tar --exclude-vcs -czvf source_code_with_submodules.tar.gz ${{ inputs.repository-directory }}
         echo "tar-file-path=$(realpath source_code_with_submodules.tar.gz)" >> $GITHUB_OUTPUT
