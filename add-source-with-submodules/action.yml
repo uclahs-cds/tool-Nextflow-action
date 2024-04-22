@@ -19,7 +19,6 @@ runs:
         path: ${{ steps.repository-path.outputs.repository-path }}
         submodules: 'recursive'
         token: ${{ inputs.my-token }}
-        persist-credentials: false
     - id: create-tar-file
       uses: uclahs-cds/tool-Nextflow-action/tar-with-submodules@latest
       with:
