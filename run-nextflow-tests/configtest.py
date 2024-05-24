@@ -214,7 +214,7 @@ class NextflowConfigTest:
             print(config_output)
             raise
 
-    def print_diffs(self, other: T):
+    def print_diffs(self, other: "NextflowConfigTest"):
         "Print the diff results to the console."
         diff_process = subprocess.run(
             ["diff", self.filepath, other.filepath],

@@ -181,9 +181,6 @@ def parse_config(config_str: str,
             re.MULTILINE
         ).group(1)
 
-        # Add 'manifest.version' to the list of fields to be masked
-        version_fields.append("manifest.version")
-
     except AttributeError:
         version_str = None
 
