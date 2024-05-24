@@ -154,6 +154,14 @@ jobs:
     "trace.file",
     "params.date"
   ],
+  "version_fields": [
+    "manifest.version",
+    "params.log_output_dir",
+    "params.output_dir_base",
+    "report.file",
+    "trace.file",
+    "timeline.file"
+  ],
   "expected_result": {}
 }
 ```
