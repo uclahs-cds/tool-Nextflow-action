@@ -27,6 +27,20 @@ class NextflowConfigTest:
     # pylint: disable=too-many-instance-attributes
     SENTINEL: ClassVar = "=========SENTINEL_OUTPUT=========="
 
+    # python3.7 doesn't support `kw_only` and other useful dataclass features.
+    # These two fields are workarounds for that.
+    OPTIONAL_DICTS: ClassVar = {
+        "nf_params",
+        "envvars",
+        "mocks",
+        "dated_fields",
+        "version_fields",
+    }
+    OPTIONAL_LISTS: ClassVar = {
+        "dated_fields",
+        "version_fields",
+    }
+
     pipeline: Path = dataclasses.field(init=False, compare=False)
     filepath: Path = dataclasses.field(init=False, compare=False)
 
@@ -56,8 +70,11 @@ class NextflowConfigTest:
         data.pop("empty_files", None)
         data.pop("mapped_files", None)
 
-        # Bootstrap this new field that may not be present in existing files
-        data.setdefault("version_fields", [])
+        for fieldname in cls.OPTIONAL_DICTS:
+            data.setdefault(fieldname, {})
+
+        for fieldname in cls.OPTIONAL_LISTS:
+            data.setdefault(fieldname, [])
 
         result = cls(**data)
         result.pipeline = pipeline
@@ -85,6 +102,11 @@ class NextflowConfigTest:
         "Serialize a ConfigTest to a file."
         data = dataclasses.asdict(self)
         data.pop("pipeline")
+
+        # Strip any empty optional fields from the output
+        for field in self.OPTIONAL_DICTS | self.OPTIONAL_LISTS:
+            if not data[field]:
+                data.pop(field)
 
         with data.pop("filepath").open(mode="w") as outfile:
             json.dump(

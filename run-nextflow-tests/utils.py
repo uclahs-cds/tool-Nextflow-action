@@ -158,7 +158,7 @@ def parse_config(config_str: str,
                  version_fields: List[str]) -> dict:
     "Parse a string of Java properties."
     param_re = re.compile(r"^(?P<key>\S+?[^\\])=(?P<value>.*)$")
-    version_fields = version_fields[:]
+    version_fields = list(version_fields)
 
     def assign_value(closure, key, value):
         if "." not in key:
