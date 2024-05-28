@@ -27,6 +27,20 @@ class NextflowConfigTest:
     # pylint: disable=too-many-instance-attributes
     SENTINEL: ClassVar = "=========SENTINEL_OUTPUT=========="
 
+    # python3.7 doesn't support `kw_only` and other useful dataclass features.
+    # These two fields are workarounds for that.
+    OPTIONAL_DICTS: ClassVar = {
+        "nf_params",
+        "envvars",
+        "mocks",
+        "dated_fields",
+        "version_fields",
+    }
+    OPTIONAL_LISTS: ClassVar = {
+        "dated_fields",
+        "version_fields",
+    }
+
     pipeline: Path = dataclasses.field(init=False, compare=False)
     filepath: Path = dataclasses.field(init=False, compare=False)
 
@@ -42,6 +56,7 @@ class NextflowConfigTest:
     mocks: Dict
 
     dated_fields: List[str]
+    version_fields: List[str]
 
     expected_result: Dict
 
@@ -54,6 +69,12 @@ class NextflowConfigTest:
         # Remove these deprecated fields
         data.pop("empty_files", None)
         data.pop("mapped_files", None)
+
+        for fieldname in cls.OPTIONAL_DICTS:
+            data.setdefault(fieldname, {})
+
+        for fieldname in cls.OPTIONAL_LISTS:
+            data.setdefault(fieldname, [])
 
         result = cls(**data)
         result.pipeline = pipeline
@@ -81,6 +102,11 @@ class NextflowConfigTest:
         "Serialize a ConfigTest to a file."
         data = dataclasses.asdict(self)
         data.pop("pipeline")
+
+        # Strip any empty optional fields from the output
+        for field in self.OPTIONAL_DICTS | self.OPTIONAL_LISTS:
+            if not data[field]:
+                data.pop(field)
 
         with data.pop("filepath").open(mode="w") as outfile:
             json.dump(
@@ -181,12 +207,14 @@ class NextflowConfigTest:
         config_text = config_output.rsplit(self.SENTINEL, maxsplit=1)[-1]
 
         try:
-            return parse_config(config_text, self.dated_fields)
+            return parse_config(
+                config_text, self.dated_fields, self.version_fields
+            )
         except Exception:
             print(config_output)
             raise
 
-    def print_diffs(self, other: T):
+    def print_diffs(self, other: "NextflowConfigTest"):
         "Print the diff results to the console."
         diff_process = subprocess.run(
             ["diff", self.filepath, other.filepath],

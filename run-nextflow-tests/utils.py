@@ -153,9 +153,12 @@ def parse_value(value_str: str) -> Any:
     return value
 
 
-def parse_config(config_str: str, dated_fields: List[str]) -> dict:
+def parse_config(config_str: str,
+                 dated_fields: List[str],
+                 version_fields: List[str]) -> dict:
     "Parse a string of Java properties."
     param_re = re.compile(r"^(?P<key>\S+?[^\\])=(?P<value>.*)$")
+    version_fields = list(version_fields)
 
     def assign_value(closure, key, value):
         if "." not in key:
@@ -169,6 +172,17 @@ def parse_config(config_str: str, dated_fields: List[str]) -> dict:
                 closure[local_key] = {}
 
             assign_value(closure[local_key], remainder, value)
+
+    # Parse out the current manifest version
+    try:
+        version_str = re.search(
+            r"^manifest.version=(.*)$",
+            config_str,
+            re.MULTILINE
+        ).group(1)
+
+    except AttributeError:
+        version_str = None
 
     config: dict[str, Any] = {}
 
@@ -187,6 +201,10 @@ def parse_config(config_str: str, dated_fields: List[str]) -> dict:
         if escaped_key in dated_fields:
             # Replace the date with Pathfinder's landing
             value = DATE_RE.sub("19970704T165655Z", value)
+
+        if escaped_key in version_fields and version_str:
+            # Replace the version with an obvious weird value
+            value = value.replace(version_str, "VER.SI.ON")
 
         assign_value(config, escaped_key, value)
 
