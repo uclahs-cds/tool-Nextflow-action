@@ -35,7 +35,7 @@ jobs:
         id: getversion
         uses: mikefarah/yq@v4.44.2
         with:
-          cmd: yq '.nextflow_version' run-nextflow-tests/docker-metadata.yaml    
+          cmd: yq '.nextflow_version' run-nextflow-tests/docker-metadata.yaml
       - name: Get date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
