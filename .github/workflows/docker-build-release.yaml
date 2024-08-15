@@ -30,9 +30,20 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Read YAML
+        id: getversion
+        uses: mikefarah/yq@v4.44.2
+        with:
+          cmd: yq '.nextflow_version' run-nextflow-tests/docker-metadata.yaml    
+      - name: Get date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - uses: uclahs-cds/tool-Docker-action@v2.1.0
         with:
           metadata-file: run-nextflow-tests/docker-metadata.yaml
           context: run-nextflow-tests
+          custom-tags: |
+            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/main'}},value=${{steps.getversion.outputs.result}}
+            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/main'}},value=${{steps.getversion.outputs.result}}-${{steps.date.outputs.date}}
           # Uncomment if you expect to use non-SemVer release tags
           # non-semver-tags: true
