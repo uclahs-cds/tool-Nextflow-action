@@ -33,6 +33,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Handle constructing anchor links for repeated headings
 - No longer fail when no Nextflow tests are discovered
 - Do not store GITHUB_TOKEN in release bundle
+- Add new breaking `include-hidden-files` argument to `update-artifact`
 
 ---
 

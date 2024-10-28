@@ -129,6 +129,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          include-hidden-files: true
           name: ${{ steps.dockertest.outputs.archive_key }}
           path: ${{ steps.dockertest.outputs.archive_path }}
         if: ${{ !cancelled() }}
