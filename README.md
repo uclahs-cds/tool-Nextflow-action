@@ -1,3 +1,5 @@
+[![GitHub release](https://img.shields.io/github/v/release/uclahs-cds/tool-Nextflow-action)](https://github.com/uclahs-cds/tool-Nextflow-action/actions/workflows/prepare-release.yaml)
+
 # Project/Repo Title
 
 Template Repository for the Boutros Lab general project repos. Describe a simple overview of use/purpose here.
