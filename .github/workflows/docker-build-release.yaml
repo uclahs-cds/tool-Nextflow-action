@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Read YAML
         id: getversion
-        uses: mikefarah/yq@v4.44.2
+        uses: mikefarah/yq@v4.45.1
         with:
           cmd: yq '.nextflow_version' run-nextflow-tests/docker-metadata.yaml
       - name: Get date
