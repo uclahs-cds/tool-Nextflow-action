@@ -39,7 +39,7 @@ jobs:
       - name: Get date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
-      - uses: uclahs-cds/tool-Docker-action@v2.1.0
+      - uses: uclahs-cds/tool-Docker-action@v2
         with:
           metadata-file: run-nextflow-tests/docker-metadata.yaml
           context: run-nextflow-tests
