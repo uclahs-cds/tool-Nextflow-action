@@ -6,7 +6,6 @@ import groovy.lang.Closure
 import groovy.lang.ProxyMetaClass
 import groovy.util.ConfigObject
 
-import nextflow.Const
 import nextflow.cli.CliOptions
 import nextflow.cli.CmdRun
 import nextflow.config.ConfigBuilder
@@ -233,7 +232,21 @@ void print_configuration() {
         walk(interceptor, "process", config.process)
     }
 
-    System.out.println("betterconfig_nextflow_version=${Const.APP_VER}")
+    def nextflowVersion = null
+
+    try {
+        // Try Nextflow 24+ (BuildInfo)
+        def buildInfoClass = Class.forName('nextflow.BuildInfo')
+        nextflowVersion = buildInfoClass.getDeclaredField('version').get(null)
+    } catch (ClassNotFoundException | NoSuchFieldException e) {
+        try {
+            // Fallback to Nextflow 23 (Const)
+            def constClass = Class.forName('nextflow.Const')
+            nextflowVersion = constClass.getDeclaredField('APP_VER').get(null)
+        } catch (Exception ignored) { }
+    }
+
+    System.out.println("betterconfig_nextflow_version=${nextflowVersion ?: 'unknown'}")
 
     System.out << ConfigHelper.toPropertiesString(config, false)
 }

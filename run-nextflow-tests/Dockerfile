@@ -1,5 +1,5 @@
 ARG MAVEN_VERSION=3-amazoncorretto-8
-ARG NEXTFLOW_VERSION=23.10.0
+ARG NEXTFLOW_VERSION=24.10.4
 
 # Download dependencies using Maven
 FROM maven:${MAVEN_VERSION} AS builder
@@ -22,19 +22,17 @@ COPY --from=jdimage /jd /usr/local/bin/jd
 # 2. Copy the contents of that script, swapping out the Nextflow entrypoint for
 #    groovy
 ENV testscript=/usr/local/bin/nextflow-config-test
-RUN yum install -y python3 && \
+ENV HACKED_NEXTFLOW=/tmp/hackednextflow
+
+RUN yum install -y python3 findutils && \
     echo "#!/bin/bash" > "$testscript" && \
     echo -n "exec " >> "$testscript" && \
-    chmod +x "$testscript" && \
-    NXF_OFFLINE=true \
-        NXF_CLASSPATH=$(find /bljars/ -not -name 'groovy-3*' -type f -printf ":%p") \
-        nextflow -v && \
-    sed \
-        $(find /.nextflow/tmp/launcher -name 'classpath-*' -printf '%T@\t%p\n' | sort -n | tail -n1 | cut -f2) \
-        -e 's|nextflow.cli.Launcher|groovy.ui.GroovyMain|' >> "$testscript" && \
-    echo ' "$@"' >> "$testscript"
+    awk 'NR==1 {print; print "exec() {"; print "    echo -n \"$@\""; print "    exit 0"; print "}" } NR>1' /usr/local/bin/nextflow > "$HACKED_NEXTFLOW" && \
+    bash "$HACKED_NEXTFLOW" >> "$testscript" && \
+    sed -i -e "s| -jar \([^ ]*\)| -cp \1$(find /bljars/ -not -name 'groovy-3*' -type f -printf ':%p')|" "$testscript" && \
+    echo ' groovy.ui.GroovyMain "$@"' >> "$testscript" && \
+    chmod +x "$testscript"
 
-# Copy in the `nextflow config`-like groovy script
 COPY betterconfig.groovy /usr/local/bltests/
 COPY entry.py configtest.py utils.py /usr/local/bltests/
 WORKDIR /mnt/pipeline

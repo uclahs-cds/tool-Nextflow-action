@@ -123,12 +123,6 @@ def run_tests(path: Path, dev_image: bool) -> int:
         with test.open() as infile:
             nextflow_version = json.load(infile)["nextflow_version"]
 
-        if nextflow_version != "23.10.0":
-            logging.error(
-                "  ERROR: Only Nextflow version 23.10.0 is supported"
-            )
-            continue
-
         if dev_image:
             image_name = build_image(nextflow_version)
         else:
