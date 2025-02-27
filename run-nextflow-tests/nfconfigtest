@@ -18,7 +18,7 @@ def build_image(nextflow_version: str) -> str:
 
     try:
         subprocess.run(
-            ["docker", "build", ".", "-t", image_name],
+            ["docker", "build", ".", "-t", image_name, "-f", f"Dockerfile-{nextflow_version}"],
             cwd=Path(__file__).resolve().parent,
             check=True,
             capture_output=True,
@@ -114,21 +114,21 @@ def run_tests(path: Path, dev_image: bool) -> int:
     digits = math.ceil(math.log10(test_count))
     success_count = 0
 
-    log_format = f"#%{digits}d/%d: %s"
+    log_format = f"#%{digits}d/%d: %s (%s)"
 
     for index, test in enumerate(sorted(test_files)):
-        logging.info(log_format, index+1, test_count, test.relative_to(path))
-
         # Check the Nextflow version of the test
         with test.open() as infile:
             nextflow_version = json.load(infile)["nextflow_version"]
+
+        logging.info(log_format, index+1, test_count, test.relative_to(path), nextflow_version)
 
         if dev_image:
             image_name = build_image(nextflow_version)
         else:
             image_name = ":".join([
                 "ghcr.io/uclahs-cds/nextflow-config-tests",
-                nextflow_version
+                "test-" + nextflow_version
             ])
             subprocess.run(
                 ["docker", "pull", image_name],
