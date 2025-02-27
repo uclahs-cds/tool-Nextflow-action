@@ -29,22 +29,24 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        nextflow_version:
+          - 23.10.0
+          - 24.10.4
+
     steps:
       - uses: actions/checkout@v4
-      - name: Read YAML
-        id: getversion
-        uses: mikefarah/yq@v4.45.1
-        with:
-          cmd: yq '.nextflow_version' run-nextflow-tests/docker-metadata.yaml
       - name: Get date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - uses: uclahs-cds/tool-Docker-action@v2
         with:
           metadata-file: run-nextflow-tests/docker-metadata.yaml
+          file: run-nextflow-tests/Dockerfile-${{ nextflow_version }}
           context: run-nextflow-tests
           custom-tags: |
-            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/main'}},value=${{steps.getversion.outputs.result}}
-            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/main'}},value=${{steps.getversion.outputs.result}}-${{steps.date.outputs.date}}
-          # Uncomment if you expect to use non-SemVer release tags
-          # non-semver-tags: true
+            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/nwiltsie-support-nextflow-24'}},value=test-${{ nextflow_version }}
+            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/nwiltsie-support-nextflow-24'}},value=test-${{ nextflow_version }}-${{steps.date.outputs.date}}
