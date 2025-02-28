@@ -48,5 +48,5 @@ jobs:
           file: run-nextflow-tests/Dockerfile-${{ matrix.nextflow_version }}
           context: run-nextflow-tests
           custom-tags: |
-            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/nwiltsie-support-nextflow-24'}},value=test-${{ matrix.nextflow_version }}
-            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/nwiltsie-support-nextflow-24'}},value=test-${{ matrix.nextflow_version }}-${{steps.date.outputs.date}}
+            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/main'}},value=${{ matrix.nextflow_version }}
+            type=raw,enable=${{github.event_name == 'push' && github.ref == 'refs/heads/main'}},value=${{ matrix.nextflow_version }}-${{steps.date.outputs.date}}

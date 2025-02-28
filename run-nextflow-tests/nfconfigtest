@@ -128,7 +128,7 @@ def run_tests(path: Path, dev_image: bool) -> int:
         else:
             image_name = ":".join([
                 "ghcr.io/uclahs-cds/nextflow-config-tests",
-                "test-" + nextflow_version
+                nextflow_version
             ])
             subprocess.run(
                 ["docker", "pull", image_name],

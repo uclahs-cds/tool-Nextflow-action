@@ -124,7 +124,7 @@ jobs:
             -v "$GITHUB_OUTPUT:$GITHUB_OUTPUT" \
             -v ${{ github.workspace}}:${{ github.workspace }} \
             -w ${{ github.workspace }} \
-            ghcr.io/uclahs-cds/nextflow-config-tests:test-$NF_VERSION \
+            ghcr.io/uclahs-cds/nextflow-config-tests:$NF_VERSION \
               ${{ github.workspace }} \
               ${{ matrix.testfile }}
 
