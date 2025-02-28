@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Add `nfconfigtest` script to run regression tests locally
 - Add `summary` check for Nextflow tests
 - Ability for Nextflow tests to self-resolve in response to "/fix-tests" comments
+- Add support for testing configuration in Nextflow 24.10.4
 
 ### Changed
 - Update output file name to explicitly specify `submodules`
