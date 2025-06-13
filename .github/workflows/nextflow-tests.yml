@@ -116,6 +116,7 @@ jobs:
 
       - id: dockertest
         run: |
+          NF_VERSION=$(jq -r ".nextflow_version" "${{ matrix.testfile }}")
           docker run \
             --rm \
             -e CI \
@@ -123,7 +124,7 @@ jobs:
             -v "$GITHUB_OUTPUT:$GITHUB_OUTPUT" \
             -v ${{ github.workspace}}:${{ github.workspace }} \
             -w ${{ github.workspace }} \
-            ghcr.io/uclahs-cds/nextflow-config-tests:23.10.0 \
+            ghcr.io/uclahs-cds/nextflow-config-tests:$NF_VERSION \
               ${{ github.workspace }} \
               ${{ matrix.testfile }}
 
