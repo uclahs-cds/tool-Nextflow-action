@@ -271,7 +271,7 @@ jobs:
 
       - if: steps.status.outputs.should-fix == 'true'
         id: pushchanges
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: Autofix Nextflow configuration regression tests
           branch: ${{ needs.discover.outputs.branch_ref }}
