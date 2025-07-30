@@ -1,14 +1,15 @@
 # Changelog
+
 All notable changes to the tool_name Docker file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
+## [1.0.0] - 2025-01-24
 
-## [Unreleased]
 ### Added
+
 - Action to build and deploy documentation on GitHub Pages
 - `backfill.py` script to generate documentation for existing tags
 - Add reusable workflow to run Nextflow regression tests
@@ -18,6 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Ability for Nextflow tests to self-resolve in response to "/fix-tests" comments
 
 ### Changed
+
 - Update output file name to explicitly specify `submodules`
 - Update documentation action to use tags and 'development' versions
 - Improved GitHub links in documentation links for tagged versions
@@ -26,6 +28,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Rename workflow and status check name to 'Nextflow config tests'
 
 ### Fixed
+
 - No longer fail on missing `gh-pages` branch
 - No longer fail on relative links to directories
 - No longer fail on broken links
@@ -35,9 +38,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Do not store GITHUB_TOKEN in release bundle
 - Add new breaking `include-hidden-files` argument to `update-artifact`
 
----
-
 ## [1.0.0-rc.1] - 2022-08-22
+
 ### Added
+
 - Action to tar repository with submodules
 - Action to add source code with submodules as release asset
+
+[1.0.0]: https://github.com/uclahs-cds/tool-Nextflow-action/compare/v1.0.0-rc.1...v1.0.0
+[1.0.0-rc.1]: https://github.com/uclahs-cds/tool-Nextflow-action/releases/tag/v1.0.0-rc.1
