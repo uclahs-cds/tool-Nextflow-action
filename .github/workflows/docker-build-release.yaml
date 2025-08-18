@@ -30,7 +30,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Read YAML
         id: getversion
         uses: mikefarah/yq@v4.47.1
