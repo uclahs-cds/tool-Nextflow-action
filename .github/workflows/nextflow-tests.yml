@@ -59,7 +59,7 @@ jobs:
                context: "Nextflow config tests",
             });
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ steps.parse-event.outputs.checkout_sha }}
 
@@ -103,7 +103,7 @@ jobs:
         testfile: ${{ fromJSON(needs.discover.outputs.testfiles) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.discover.outputs.checkout_sha }}
           submodules: true
@@ -189,7 +189,7 @@ jobs:
             }
 
       - if: steps.status.outputs.tests-failed == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ needs.discover.outputs.checkout_sha }}
           # By default the depth is 1, which only fetches the current commit
