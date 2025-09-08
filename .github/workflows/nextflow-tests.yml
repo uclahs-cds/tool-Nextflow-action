@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Download artifact'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
@@ -36,7 +36,7 @@ jobs:
       - name: 'Unzip artifact'
         run: unzip test-config.zip
 
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         name: Parse configuration
         id: parse-event
         with:
@@ -143,7 +143,7 @@ jobs:
       !cancelled()
 
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         id: status
         name: Determine required steps
         with:
@@ -209,7 +209,7 @@ jobs:
       - if: steps.status.outputs.tests-failed == 'true'
         id: check-fixability
         name: Confirm tests can be fixed
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const file_patterns = ['configtest*.json', '**/configtest*.json'];
@@ -280,7 +280,7 @@ jobs:
 
       - if: steps.status.outputs.should-fix == 'true'
         name: Add comment about reviewing
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             let commit_id = ${{ toJSON(steps.pushchanges.outputs.commit_hash) }};
@@ -297,7 +297,7 @@ jobs:
       - if: ${{ steps.status.outputs.should-comment == 'true' }}
         id: createreview
         name: Post review
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fsPromises = require('fs/promises');

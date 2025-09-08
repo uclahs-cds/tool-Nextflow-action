@@ -34,7 +34,7 @@ jobs:
         }}
 
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         name: Check user permissions
         with:
           script: |
@@ -89,7 +89,7 @@ jobs:
                 core.setFailed(`${triggering_actor} does not have write permissions`);
             }
 
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         name: Prep for test
         with:
           script: |
