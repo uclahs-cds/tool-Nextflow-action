@@ -128,7 +128,7 @@ jobs:
               ${{ github.workspace }} \
               ${{ matrix.testfile }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           include-hidden-files: true
           name: ${{ steps.dockertest.outputs.archive_key }}
