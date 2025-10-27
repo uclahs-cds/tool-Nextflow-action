@@ -202,7 +202,7 @@ jobs:
           token: ${{ steps.status.outputs.should-fix == 'true' && secrets.UCLAHS_CDS_REPO_READ_TOKEN || secrets.GITHUB_TOKEN }}
 
       - if: steps.status.outputs.tests-failed == 'true'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           merge-multiple: true
 
